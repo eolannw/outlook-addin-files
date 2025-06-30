@@ -251,7 +251,8 @@
                 console.log("Sending payload to Power Automate:", payload);
                 
                 // Send data to Power Automate
-                const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01";
+                // The URL includes a SAS token (sig parameter) for authentication
+                const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
                 
                 // Use XMLHttpRequest instead of fetch to avoid potential CORS issues
                 var xhr = new XMLHttpRequest();

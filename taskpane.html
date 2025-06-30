@@ -250,16 +250,34 @@
                 // Log the payload for debugging
                 console.log("Sending payload to Power Automate:", payload);
                 
-                // Send data to Power Automate with authentication
-                const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
+                // Since direct API calls require OAuth authentication which is complex to set up,
+                // we'll use a simpler approach that works in Outlook add-ins
+                console.log("Using Outlook's callback token for authorization");
                 
-                // Use direct JSON approach since FormData approach wasn't working
+                // First, get an authorization token from Outlook
+                Office.context.mailbox.getCallbackTokenAsync({ isRest: true }, function(result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        const accessToken = result.value;
+                        sendRequestWithToken(accessToken, payload);
+                    } else {
+                        console.error("Error getting token:", result.error);
+                        showError("Authentication error: " + result.error.message);
+                        // Reset button state
+                        document.getElementById("submit-btn").disabled = false;
+                        document.getElementById("submit-btn").textContent = "Submit to SharePoint";
+                    }
+                });
                 
-                // Use XMLHttpRequest instead of fetch to avoid potential CORS issues
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", flowUrl, true);
-                xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.setRequestHeader("Accept", "application/json");
+                // This function sends the actual request with the token
+                function sendRequestWithToken(token, payloadData) {
+                    const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
+                    
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("POST", flowUrl, true);
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.setRequestHeader("Accept", "application/json");
+                    // Add token as Bearer authentication
+                    xhr.setRequestHeader("Authorization", "Bearer " + token);
                 
                 // Set up handlers for success and error
                 xhr.onreadystatechange = function() {
@@ -283,16 +301,17 @@
                     }
                 };
                 
-                // Handle network errors
-                xhr.onerror = function() {
-                    console.error("Network error occurred");
-                    showError("Network error occurred while submitting to SharePoint. Please check your connection.");
-                    document.getElementById("submit-btn").disabled = false;
-                    document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-                };
-                
-                // Send the request with JSON payload
-                xhr.send(JSON.stringify(payload));
+                    // Handle network errors
+                    xhr.onerror = function() {
+                        console.error("Network error occurred");
+                        showError("Network error occurred while submitting to SharePoint. Please check your connection.");
+                        document.getElementById("submit-btn").disabled = false;
+                        document.getElementById("submit-btn").textContent = "Submit to SharePoint";
+                    };
+                    
+                    // Send the request with JSON payload and token
+                    xhr.send(JSON.stringify(payloadData));
+                }
                 
             } catch (error) {
                 console.error("Error in submitToSharePoint:", error);

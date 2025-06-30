@@ -15,7 +15,13 @@
             padding: 20px;
         }
         h1 {
+            color: #0078d4;
             margin-top: 0;
+        }
+        p.subtitle {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
         .form-group {
             margin-bottom: 15px;
@@ -44,27 +50,52 @@
             cursor: pointer;
             border-radius: 4px;
             margin-right: 10px;
+            margin-top: 10px;
         }
         button:hover {
             background-color: #005a9e;
+        }
+        .button-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+        .button-secondary:hover {
+            background-color: #e1e1e1;
         }
         .error {
             color: #d83b01;
             background-color: #fed9cc;
             padding: 10px;
-            margin-top: 20px;
+            margin: 15px 0;
             border-radius: 4px;
+        }
+        .success {
+            color: #107c10;
+            background-color: #dff6dd;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        #loading {
+            text-align: center;
+            margin: 50px 0;
+        }
+        .required {
+            color: #d83b01;
         }
     </style>
 </head>
 
 <body>
     <h1>Track Request</h1>
-    <p>Log this email request to SharePoint</p>
+    <p class="subtitle">Log this email request to SharePoint</p>
     
-    <div id="error-container" class="error" style="display:none;"></div>
+    <div id="loading">Loading email data...</div>
     
-    <div id="form-container">
+    <div id="error-message" class="error" style="display:none;"></div>
+    <div id="success-message" class="success" style="display:none;"></div>
+    
+    <form id="request-form" style="display:none;">
         <div class="form-group">
             <label for="subject">Subject</label>
             <input type="text" id="subject" readonly />
@@ -81,11 +112,12 @@
         </div>
 
         <div class="form-group">
-            <label for="status">Request Status *</label>
+            <label for="status">Request Status <span class="required">*</span></label>
             <select id="status" required>
                 <option value="">Select Status...</option>
                 <option value="New">New</option>
                 <option value="In Progress">In Progress</option>
+                <option value="Pending Review">Pending Review</option>
                 <option value="Completed">Completed</option>
                 <option value="On Hold">On Hold</option>
             </select>
@@ -96,65 +128,117 @@
             <textarea id="notes" placeholder="Enter any additional notes about this request..."></textarea>
         </div>
 
-        <button id="submit-btn">Submit to SharePoint</button>
-        <button id="reset-btn" type="button">Reset Form</button>
-    </div>
+        <button id="submit-btn" type="button">Submit to SharePoint</button>
+        <button id="reset-btn" type="button" class="button-secondary">Reset Form</button>
+    </form>
 
     <script>
-        // Initialize Office
-        Office.onReady(function() {
-            try {
-                // Using direct property access instead of getAsync
-                if (Office.context.mailbox && Office.context.mailbox.item) {
-                    // Get subject directly - no getAsync needed
-                    document.getElementById('subject').value = Office.context.mailbox.item.subject || '(No subject)';
-                    
-                    // Get sender info
-                    if (Office.context.mailbox.item.from) {
-                        const sender = Office.context.mailbox.item.from;
-                        document.getElementById('sender').value = sender.displayName || sender.emailAddress || '';
-                    }
-                    
-                    // Get date
-                    if (Office.context.mailbox.item.dateTimeCreated) {
-                        document.getElementById('sentDate').value = 
-                            Office.context.mailbox.item.dateTimeCreated.toLocaleDateString() + ' ' + 
-                            Office.context.mailbox.item.dateTimeCreated.toLocaleTimeString();
-                    }
-                } else {
-                    showError('Could not access email details');
-                }
-            } catch (error) {
-                showError('Error accessing email data: ' + error.message);
-            }
+        // Wait for Office to be ready before doing anything
+        Office.initialize = function (reason) {
+            // This function is called when the add-in is ready to start
+            document.getElementById("loading").style.display = "block";
             
-            // Add button event handlers
-            document.getElementById('submit-btn').addEventListener('click', submitToSharePoint);
-            document.getElementById('reset-btn').addEventListener('click', resetForm);
-        });
+            try {
+                loadEmailData();
+            } catch (error) {
+                showError("Error initializing add-in: " + error.message);
+            }
+        };
         
-        function showError(message) {
-            const errorContainer = document.getElementById('error-container');
-            errorContainer.textContent = message;
-            errorContainer.style.display = 'block';
+        function loadEmailData() {
+            try {
+                // Make sure we have access to the mailbox and item
+                if (!Office.context || !Office.context.mailbox || !Office.context.mailbox.item) {
+                    showError("Cannot access email. Please make sure you're viewing an email message.");
+                    return;
+                }
+                
+                var item = Office.context.mailbox.item;
+                
+                // Direct property access (works with Mailbox API 1.1+)
+                document.getElementById("subject").value = item.subject || "(No subject)";
+                
+                // Get sender info - carefully check for null/undefined
+                var sender = "";
+                if (item.from) {
+                    sender = item.from.displayName || "";
+                    if (item.from.emailAddress) {
+                        sender += sender ? " <" + item.from.emailAddress + ">" : item.from.emailAddress;
+                    }
+                }
+                document.getElementById("sender").value = sender || "(Unknown sender)";
+                
+                // Get date - carefully check for null/undefined
+                var sentDate = "";
+                if (item.dateTimeCreated) {
+                    sentDate = formatDate(item.dateTimeCreated);
+                }
+                document.getElementById("sentDate").value = sentDate || "(Unknown date)";
+                
+                // Hide loading, show form
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("request-form").style.display = "block";
+                
+            } catch (error) {
+                showError("Error loading email data: " + error.message);
+            }
         }
         
-        function submitToSharePoint() {
-            // Demo implementation
-            const status = document.getElementById('status').value;
-            if (!status) {
-                showError('Please select a status');
-                return;
-            }
+        function formatDate(date) {
+            if (!date) return "";
             
-            alert('This would submit the data to SharePoint (demo only)');
-            // In a real implementation, you would call a function to save to SharePoint here
+            try {
+                return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+            } catch (e) {
+                return date.toString();
+            }
+        }
+        
+        function showError(message) {
+            var errorElement = document.getElementById("error-message");
+            errorElement.textContent = message;
+            errorElement.style.display = "block";
+            document.getElementById("loading").style.display = "none";
+        }
+        
+        function showSuccess(message) {
+            var successElement = document.getElementById("success-message");
+            successElement.textContent = message;
+            successElement.style.display = "block";
+            setTimeout(function() {
+                successElement.style.display = "none";
+            }, 5000);
+        }
+        
+        // Set up event handlers when the page has loaded
+        window.onload = function() {
+            document.getElementById("submit-btn").onclick = submitToSharePoint;
+            document.getElementById("reset-btn").onclick = resetForm;
+        };
+        
+        function submitToSharePoint() {
+            try {
+                var status = document.getElementById("status").value;
+                var notes = document.getElementById("notes").value;
+                
+                if (!status) {
+                    showError("Please select a request status");
+                    return;
+                }
+                
+                // This is a demo implementation
+                // In a real implementation, you would send data to SharePoint here
+                showSuccess("Request tracked successfully! (Demo Mode)");
+                
+            } catch (error) {
+                showError("Error submitting to SharePoint: " + error.message);
+            }
         }
         
         function resetForm() {
-            document.getElementById('status').value = '';
-            document.getElementById('notes').value = '';
-            document.getElementById('error-container').style.display = 'none';
+            document.getElementById("status").value = "";
+            document.getElementById("notes").value = "";
+            document.getElementById("error-message").style.display = "none";
         }
     </script>
 </body>

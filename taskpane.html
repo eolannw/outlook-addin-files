@@ -250,21 +250,16 @@
                 // Log the payload for debugging
                 console.log("Sending payload to Power Automate:", payload);
                 
-                // Send data to Power Automate with alternative authentication method
-                const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke";
+                // Send data to Power Automate with authentication
+                const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
                 
-                // Create a new formdata object - this can sometimes work better with Power Automate
-                var formData = new FormData();
-                formData.append('api-version', '2016-06-01');
-                formData.append('sig', '7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg');
-                
-                // Add the payload as a JSON string
-                formData.append('data', JSON.stringify(payload));
+                // Use direct JSON approach since FormData approach wasn't working
                 
                 // Use XMLHttpRequest instead of fetch to avoid potential CORS issues
                 var xhr = new XMLHttpRequest();
                 xhr.open("POST", flowUrl, true);
-                // No Content-Type header for FormData - the browser will set it with the boundary
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.setRequestHeader("Accept", "application/json");
                 
                 // Set up handlers for success and error
                 xhr.onreadystatechange = function() {
@@ -296,8 +291,8 @@
                     document.getElementById("submit-btn").textContent = "Submit to SharePoint";
                 };
                 
-                // Send the request with FormData
-                xhr.send(formData);
+                // Send the request with JSON payload
+                xhr.send(JSON.stringify(payload));
                 
             } catch (error) {
                 console.error("Error in submitToSharePoint:", error);

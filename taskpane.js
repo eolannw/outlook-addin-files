@@ -4,7 +4,7 @@
 // Configuration - Update these values for your environment
 const CONFIG = {
     // Power Automate Flow HTTP trigger URL - Replace with your actual endpoint
-    POWER_AUTOMATE_ENDPOINT: 'https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01',
+    POWER_AUTOMATE_ENDPOINT: 'https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg',
     
     // SharePoint details for reference (used in data payload)
     SHAREPOINT_SITE: 'https://stryker.sharepoint.com/sites/FlexFinancial-Europe',

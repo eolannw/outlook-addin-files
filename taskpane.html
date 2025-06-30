@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Track Request</title>
+    
+    <!-- Office.js API -->
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    
+    <!-- Fabric UI for styling -->
+    <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.0.0/css/fabric.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0078d4;
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            color: #0078d4;
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #323130;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d2d0ce;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .readonly {
+            background-color: #f8f8f8;
+            color: #605e5c;
+        }
+        
+        .button-group {
+            margin-top: 25px;
+            text-align: center;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-primary {
+            background-color: #0078d4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #106ebe;
+        }
+        
+        .btn-primary:disabled {
+            background-color: #d2d0ce;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background-color: #f3f2f1;
+            color: #323130;
+            border: 1px solid #d2d0ce;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #edebe9;
+        }
+        
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .status-success {
+            background-color: #dff6dd;
+            color: #107c10;
+            border: 1px solid #107c10;
+        }
+        
+        .status-error {
+            background-color: #fde7e9;
+            color: #d13438;
+            border: 1px solid #d13438;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0078d4;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Track Request</h1>
+            <p>Log this email request to SharePoint</p>
+        </div>
+        
+        <form id="trackRequestForm">
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" readonly class="readonly">
+            </div>
+            
+            <div class="form-group">
+                <label for="sender">Sender</label>
+                <input type="text" id="sender" name="sender" readonly class="readonly">
+            </div>
+            
+            <div class="form-group">
+                <label for="sentDate">Sent Date</label>
+                <input type="text" id="sentDate" name="sentDate" readonly class="readonly">
+            </div>
+            
+            <div class="form-group">
+                <label for="requestStatus">Request Status *</label>
+                <select id="requestStatus" name="requestStatus" required>
+                    <option value="">Select Status...</option>
+                    <option value="New">New</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Pending Review">Pending Review</option>
+                    <option value="Awaiting Information">Awaiting Information</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Additional Notes</label>
+                <textarea id="notes" name="notes" placeholder="Enter any additional notes about this request..."></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    📤 Submit to SharePoint
+                </button>
+                <button type="button" class="btn btn-secondary" id="resetBtn">
+                    🔄 Reset Form
+                </button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Submitting to SharePoint...</p>
+        </div>
+        
+        <div id="statusMessage"></div>
+    </div>
+
+    <script src="taskpane.js"></script>
+</body>
+</html>

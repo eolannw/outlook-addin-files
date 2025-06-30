@@ -216,7 +216,7 @@
             document.getElementById("reset-btn").onclick = resetForm;
         };
         
-        function submitToSharePoint() {
+        async function submitToSharePoint() {
             try {
                 var status = document.getElementById("status").value;
                 var notes = document.getElementById("notes").value;
@@ -226,15 +226,63 @@
                     return;
                 }
                 
-                // This is a demo implementation
-                // In a real implementation, you would send data to SharePoint here
-                showSuccess("Request tracked successfully! (Demo Mode)");
+                // Show loading state
+                document.getElementById("submit-btn").disabled = true;
+                document.getElementById("submit-btn").textContent = "Submitting...";
+                
+                // Get email data and form inputs
+                var item = Office.context.mailbox.item;
+                var user = Office.context.mailbox.userProfile;
+                
+                // Prepare the payload for Power Automate
+                var payload = {
+                    subject: document.getElementById("subject").value,
+                    sender: document.getElementById("sender").value,
+                    sentDate: document.getElementById("sentDate").value,
+                    requestStatus: status,
+                    notes: notes || "",
+                    trackedDate: new Date().toISOString(),
+                    trackedBy: user ? user.emailAddress : "Unknown User",
+                    conversationId: item.conversationId || "",
+                    messageId: item.internetMessageId || item.itemId || "",
+                    
+                    // SharePoint Excel file details
+                    targetFile: "TrackedRequests.xlsx",
+                    targetTable: "TrackedRequests",
+                    targetSite: "https://stryker.sharepoint.com/sites/FlexFinancial-Europe",
+                    targetFolder: "/Shared Documents/Compliance/Compliance App/Requests/"
+                };
+                
+                // Send data to Power Automate
+                var response = await fetch("https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Check if the request was successful
+                if (response.ok) {
+                    var result = await response.json();
+                    console.log("Power Automate response:", result);
+                    showSuccess("✅ Request tracked successfully in SharePoint!");
+                    resetForm();
+                } else {
+                    throw new Error("HTTP Error: " + response.status);
+                }
                 
             } catch (error) {
+                console.error("Error submitting to SharePoint:", error);
                 showError("Error submitting to SharePoint: " + error.message);
+            } finally {
+                // Reset button state
+                document.getElementById("submit-btn").disabled = false;
+                document.getElementById("submit-btn").textContent = "Submit to SharePoint";
             }
         }
-        
+
         function resetForm() {
             document.getElementById("status").value = "";
             document.getElementById("notes").value = "";

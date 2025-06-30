@@ -277,7 +277,15 @@
                 
             } catch (error) {
                 console.error("Error submitting to SharePoint:", error);
-                showError("Error submitting to SharePoint: " + error.message);
+                
+                // More detailed error logging
+                if (error.response) {
+                    // The server responded with an error status
+                    console.error("Error response:", await error.response.text());
+                    showError(`Error submitting to SharePoint: ${error.status} - ${error.statusText}`);
+                } else {
+                    showError("Error submitting to SharePoint: " + error.message);
+                }
             } finally {
                 // Reset button state
                 document.getElementById("submit-btn").disabled = false;

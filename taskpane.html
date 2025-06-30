@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <title>Track Request</title>
-
+    
     <!-- Office JavaScript API -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     
@@ -55,7 +55,17 @@
             padding: 10px;
             margin-top: 20px;
             border-radius: 4px;
-            display: none;
+        }
+        .success {
+            color: #107c10;
+            background-color: #dff6dd;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        #loading {
+            margin: 20px 0;
+            font-style: italic;
         }
     </style>
 </head>
@@ -65,8 +75,12 @@
         <h1>Track Request</h1>
         <p>Log this email request to SharePoint</p>
     </div>
+    
+    <div id="loading">Loading email data...</div>
+    <div id="error-message" class="error" style="display:none;"></div>
+    <div id="success-message" class="success" style="display:none;"></div>
 
-    <div id="form-container">
+    <form id="form-container" style="display:none;">
         <div class="form-group">
             <label for="subject">Subject</label>
             <input type="text" id="subject" readonly />
@@ -88,6 +102,7 @@
                 <option value="">Select Status...</option>
                 <option value="New">New</option>
                 <option value="In Progress">In Progress</option>
+                <option value="Pending Review">Pending Review</option>
                 <option value="Completed">Completed</option>
                 <option value="On Hold">On Hold</option>
             </select>
@@ -99,71 +114,106 @@
         </div>
 
         <button id="submit-btn">Submit to SharePoint</button>
-        <button id="reset-btn">Reset Form</button>
-    </div>
-
-    <div id="error-message" class="error"></div>
+        <button id="reset-btn" type="button">Reset Form</button>
+    </form>
 
     <script>
-        // Initialize Office JS
-        Office.onReady(function(info) {
-            if (info.host === Office.HostType.Outlook) {
-                // Add click event handlers
-                document.getElementById("submit-btn").onclick = submitToSharePoint;
-                document.getElementById("reset-btn").onclick = resetForm;
-                
-                // Load email data
-                loadEmailData();
-            }
-        });
-
-        function loadEmailData() {
-            try {
-                Office.context.mailbox.item.subject.getAsync(function(result) {
-                    if (result.status === Office.AsyncResultStatus.Succeeded) {
-                        document.getElementById("subject").value = result.value || "";
-                    } else {
-                        showError("Failed to get email subject: " + result.error.message);
-                    }
-                });
-
-                Office.context.mailbox.item.from.getAsync(function(result) {
-                    if (result.status === Office.AsyncResultStatus.Succeeded) {
-                        document.getElementById("sender").value = result.value.displayName || "";
-                    } else {
-                        showError("Failed to get sender: " + result.error.message);
-                    }
-                });
-
-                // Format date
-                const date = Office.context.mailbox.item.dateTimeCreated;
-                if (date) {
-                    document.getElementById("sentDate").value = date.toLocaleString();
-                }
-            } catch (error) {
-                showError("Error accessing email data: " + error.message);
-            }
-        }
-
-        function submitToSharePoint() {
-            // Show "not implemented" for now
-            showError("SharePoint submission not implemented in this demo");
-        }
-
-        function resetForm() {
+        // Show detailed error messages in development
+        const DEBUG = true;
+        
+        document.getElementById("reset-btn").onclick = function() {
             document.getElementById("status").value = "";
             document.getElementById("notes").value = "";
-            document.getElementById("error-message").style.display = "none";
-            
-            // Reload email data
-            loadEmailData();
+        };
+        
+        document.getElementById("submit-btn").onclick = function(event) {
+            event.preventDefault();
+            showMessage("This is a demo version. SharePoint submission is not implemented.", "success");
+            return false;
+        };
+        
+        function showError(message, details) {
+            const errorDiv = document.getElementById("error-message");
+            errorDiv.textContent = message + (DEBUG && details ? "\n\nDetails: " + details : "");
+            errorDiv.style.display = "block";
+            document.getElementById("loading").style.display = "none";
+        }
+        
+        function showMessage(message, type) {
+            const msgDiv = type === "success" ? 
+                document.getElementById("success-message") : 
+                document.getElementById("error-message");
+            msgDiv.textContent = message;
+            msgDiv.style.display = "block";
+            setTimeout(() => { msgDiv.style.display = "none"; }, 5000);
         }
 
-        function showError(message) {
-            const errorDiv = document.getElementById("error-message");
-            errorDiv.textContent = message;
-            errorDiv.style.display = "block";
-        }
+        // Initialize after Office is ready
+        Office.onReady((info) => {
+            if (info.host === Office.HostType.Outlook) {
+                try {
+                    console.log("Office is ready!");
+                    
+                    // Check if we have access to the item
+                    if (!Office.context.mailbox || !Office.context.mailbox.item) {
+                        showError("Could not access email item. Make sure you're viewing an email message.", 
+                                 "Mailbox or item is null/undefined");
+                        return;
+                    }
+                    
+                    // Use directly available properties first
+                    try {
+                        const subject = Office.context.mailbox.item.subject;
+                        const from = Office.context.mailbox.item.from;
+                        const dateTimeCreated = Office.context.mailbox.item.dateTimeCreated;
+                        
+                        // If we got here, we seem to have basic access to the item properties
+                        console.log("Basic properties accessible:", { subject, from, dateTimeCreated });
+                    } catch (e) {
+                        console.error("Error accessing direct properties:", e);
+                    }
+                    
+                    // Get email data
+                    Office.context.mailbox.item.subject.getAsync((subjectResult) => {
+                        if (subjectResult.status !== Office.AsyncResultStatus.Succeeded) {
+                            showError("Error getting email subject", 
+                                     subjectResult.error ? subjectResult.error.message : "Unknown error");
+                            return;
+                        }
+                        
+                        document.getElementById("subject").value = subjectResult.value || "(No subject)";
+                        
+                        // Get sender
+                        Office.context.mailbox.item.from.getAsync((senderResult) => {
+                            if (senderResult.status !== Office.AsyncResultStatus.Succeeded) {
+                                showError("Error getting sender information", 
+                                         senderResult.error ? senderResult.error.message : "Unknown error");
+                                return;
+                            }
+                            
+                            const sender = senderResult.value;
+                            document.getElementById("sender").value = 
+                                (sender.displayName || "") + 
+                                (sender.emailAddress ? ` <${sender.emailAddress}>` : "");
+                            
+                            // Get date as simple string (not using getAsync)
+                            const date = Office.context.mailbox.item.dateTimeCreated;
+                            document.getElementById("sentDate").value = date ? date.toLocaleString() : "Unknown date";
+                            
+                            // Show form, hide loading
+                            document.getElementById("loading").style.display = "none";
+                            document.getElementById("form-container").style.display = "block";
+                        });
+                    });
+                } catch (error) {
+                    showError("Error accessing email data", 
+                             error.message || error.toString());
+                }
+            } else {
+                showError("This add-in only works in Outlook", 
+                         "Detected host: " + (info.host || "unknown"));
+            }
+        });
     </script>
 </body>
 </html>

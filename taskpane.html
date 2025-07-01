@@ -134,6 +134,11 @@
             </select>
         </div>
 
+        <div class="form-group" id="reports-requested-group" style="display:none;">
+            <label for="reportsRequested">Reports Requested</label>
+            <input type="number" id="reportsRequested" placeholder="Enter a number" />
+        </div>
+
         <div class="form-group">
             <label for="status">Request Status <span class="required">*</span></label>
             <select id="status" required>
@@ -237,13 +242,28 @@
         window.onload = function() {
             document.getElementById("submit-btn").onclick = submitToSharePoint;
             document.getElementById("reset-btn").onclick = resetForm;
+            document.getElementById("requestType").onchange = toggleReportsRequestedField;
         };
+
+        function toggleReportsRequestedField() {
+            var requestType = document.getElementById("requestType").value;
+            var reportsGroup = document.getElementById("reports-requested-group");
+            var reportsInput = document.getElementById("reportsRequested");
+
+            if (requestType === "Compliance Request") {
+                reportsGroup.style.display = "block";
+            } else {
+                reportsGroup.style.display = "none";
+                reportsInput.value = ""; // Clear the value when hidden
+            }
+        }
         
         async function submitToSharePoint() {
             try {
                 var status = document.getElementById("status").value;
                 var notes = document.getElementById("notes").value;
                 var requestType = document.getElementById("requestType").value;
+                var reportsRequested = document.getElementById("reportsRequested").value;
                 
                 if (!status) {
                     showError("Please select a request status");
@@ -251,6 +271,11 @@
                 }
                 if (!requestType) {
                     showError("Please select a request type");
+                    return;
+                }
+
+                if (requestType === "Compliance Request" && reportsRequested && isNaN(parseInt(reportsRequested, 10))) {
+                    showError("Please enter a valid number for Reports Requested.");
                     return;
                 }
                 
@@ -274,6 +299,7 @@
                             senderEmail: document.getElementById("senderEmail").value,
                             sentDate: document.getElementById("sentDate").value,
                             requestType: requestType,
+                            reportsRequested: reportsRequested ? parseInt(reportsRequested, 10) : null,
                             requestStatus: status,
                             notes: notes || "",
                             trackedDate: new Date().toISOString().split('T')[0],
@@ -357,6 +383,8 @@
             document.getElementById("status").value = "";
             document.getElementById("notes").value = "";
             document.getElementById("requestType").value = "";
+            document.getElementById("reportsRequested").value = "";
+            document.getElementById("reports-requested-group").style.display = "none";
             document.getElementById("error-message").style.display = "none";
         }
     </script>

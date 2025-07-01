@@ -355,10 +355,13 @@
                         // Success
                         showSuccess("Request tracked successfully in SharePoint!");
                         resetForm();
+                    } else if (xhr.status === 409) {
+                        // Duplicate found
+                        showError("This email has already been tracked for this Request Type. Please visit the SharePoint site.");
                     } else {
-                        // Error
+                        // Other Error
                         showError("Error submitting to SharePoint: HTTP " + xhr.status + 
-                                    (xhr.responseText ? " - " + xhr.responseText : ""));
+                                    (xhr.responseText ? " - " + JSON.parse(xhr.responseText).message : ""));
                     }
                     
                     // Reset button state

@@ -156,6 +156,22 @@
             <textarea id="notes" placeholder="Enter any additional notes about this request..."></textarea>
         </div>
 
+        <hr style="margin: 20px 0; border: 1px solid #eee;">
+
+        <div class="form-group">
+            <label for="priority">Priority</label>
+            <select id="priority">
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="dueDate">Due Date (Optional)</label>
+            <input type="date" id="dueDate" />
+        </div>
+
         <button id="submit-btn" type="button">Submit to SharePoint</button>
         <button id="reset-btn" type="button" class="button-secondary">Reset Form</button>
     </form>
@@ -265,6 +281,10 @@
                 var requestType = document.getElementById("requestType").value;
                 var reportsRequested = document.getElementById("reportsRequested").value;
                 
+                // Get new field values
+                var priority = document.getElementById("priority").value;
+                var dueDate = document.getElementById("dueDate").value;
+
                 if (!status) {
                     showError("Please select a request status");
                     return;
@@ -302,6 +322,11 @@
                             reportsRequested: reportsRequested ? parseInt(reportsRequested, 10) : null,
                             requestStatus: status,
                             notes: notes || "",
+                            // Add new and automatic fields
+                            priority: priority,
+                            dueDate: dueDate || null,
+                            assignedTo: user ? user.emailAddress : "",
+                            // ---
                             trackedDate: new Date().toISOString().split('T')[0],
                             trackedBy: user ? user.emailAddress : "Unknown User",
                             conversationId: item.conversationId || "",
@@ -389,6 +414,9 @@
             document.getElementById("reportsRequested").value = "";
             document.getElementById("reports-requested-group").style.display = "none";
             document.getElementById("error-message").style.display = "none";
+            // Reset new fields
+            document.getElementById("priority").value = "Medium";
+            document.getElementById("dueDate").value = "";
         }
     </script>
 </body>

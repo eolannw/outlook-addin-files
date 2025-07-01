@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <title>Track Request</title>
+    <title>Compliance Request</title>
     
     <!-- Office JavaScript API -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
@@ -15,8 +15,14 @@
             padding: 20px;
         }
         h1 {
-            color: #0078d4;
+            color: #ff9e18;
             margin-top: 0;
+        }
+        h2 {
+            font-weight: normal;
+            color: #000;
+            margin-top: -10px;
+            margin-bottom: 20px;
         }
         p.subtitle {
             border-bottom: 1px solid #ccc;
@@ -43,7 +49,7 @@
             height: 100px;
         }
         button {
-            background-color: #0078d4;
+            background-color: #ff9e18;
             color: white;
             border: none;
             padding: 10px 15px;
@@ -53,7 +59,7 @@
             margin-top: 10px;
         }
         button:hover {
-            background-color: #005a9e;
+            background-color: #e68e16;
         }
         .button-secondary {
             background-color: #f1f1f1;
@@ -87,7 +93,8 @@
 </head>
 
 <body>
-    <h1>Track Request</h1>
+    <h2>Stryker</h2>
+    <h1>Compliance Request</h1>
     <p class="subtitle">Log this email request to SharePoint</p>
     
     <div id="loading">Loading email data...</div>
@@ -102,13 +109,30 @@
         </div>
 
         <div class="form-group">
-            <label for="sender">Sender</label>
-            <input type="text" id="sender" readonly />
+            <label for="senderName">Sender Name</label>
+            <input type="text" id="senderName" readonly />
+        </div>
+
+        <div class="form-group">
+            <label for="senderEmail">Sender Email</label>
+            <input type="text" id="senderEmail" readonly />
         </div>
 
         <div class="form-group">
             <label for="sentDate">Sent Date</label>
             <input type="text" id="sentDate" readonly />
+        </div>
+
+        <div class="form-group">
+            <label for="requestType">Request Type <span class="required">*</span></label>
+            <select id="requestType" required>
+                <option value="">Select Request Type...</option>
+                <option value="Compliance Request">Compliance Request</option>
+                <option value="Termination Request">Termination Request</option>
+                <option value="Extension Request">Extension Request</option>
+                <option value="Deal Reporting">Deal Reporting</option>
+                <option value="Other">Other</option>
+            </select>
         </div>
 
         <div class="form-group">
@@ -159,14 +183,14 @@
                 document.getElementById("subject").value = item.subject || "(No subject)";
                 
                 // Get sender info - carefully check for null/undefined
-                var sender = "";
+                var senderName = "";
+                var senderEmail = "";
                 if (item.from) {
-                    sender = item.from.displayName || "";
-                    if (item.from.emailAddress) {
-                        sender += sender ? " <" + item.from.emailAddress + ">" : item.from.emailAddress;
-                    }
+                    senderName = item.from.displayName || "";
+                    senderEmail = item.from.emailAddress || "";
                 }
-                document.getElementById("sender").value = sender || "(Unknown sender)";
+                document.getElementById("senderName").value = senderName || "(Unknown sender)";
+                document.getElementById("senderEmail").value = senderEmail || "(Unknown email)";
                 
                 // Get date - carefully check for null/undefined
                 var sentDate = "";
@@ -220,9 +244,14 @@
             try {
                 var status = document.getElementById("status").value;
                 var notes = document.getElementById("notes").value;
+                var requestType = document.getElementById("requestType").value;
                 
                 if (!status) {
                     showError("Please select a request status");
+                    return;
+                }
+                if (!requestType) {
+                    showError("Please select a request type");
                     return;
                 }
                 
@@ -233,76 +262,44 @@
                 // Get email data and form inputs
                 var item = Office.context.mailbox.item;
                 var user = Office.context.mailbox.userProfile;
-                
-                // Prepare the payload for Power Automate
-                var payload = {
-                    subject: document.getElementById("subject").value,
-                    sender: document.getElementById("sender").value,
-                    sentDate: document.getElementById("sentDate").value,
-                    requestStatus: status,
-                    notes: notes || "",
-                    trackedDate: new Date().toISOString(),
-                    trackedBy: user ? user.emailAddress : "Unknown User",
-                    conversationId: item.conversationId || "",
-                    messageId: item.internetMessageId || item.itemId || "",
-                };
-                
-                // Log the payload for debugging
-                console.log("Sending payload to Power Automate:", payload);
-                
-                // Send the data directly to Power Automate flow using anonymous access
-                // Anonymous access must be enabled in the flow using "Who can trigger the flow?" set to "Anyone with the link"
-                // or by using the expression: @equals('anonymous', 'anonymous')
-                sendRequestToFlow(payload);
-                
-                // This function sends the request directly to the flow
-                function sendRequestToFlow(payloadData) {
-                    // This URL must include the complete endpoint with the SAS token (sig parameter)
-                    // The Power Automate flow must have "Allow anonymous requests" set to "On"
-                    const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
-                    
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", flowUrl, true);
-                    xhr.setRequestHeader("Content-Type", "application/json");
-                    xhr.setRequestHeader("Accept", "application/json");
-                    // No authentication header needed when using anonymous access with SAS token
-                
-                // Set up handlers for success and error
-                xhr.onreadystatechange = function() {
-                    if (xhr.readyState === 4) {
-                        console.log("Response status:", xhr.status);
-                        console.log("Response text:", xhr.responseText);
+
+                // Get email body
+                item.body.getAsync("text", async function (result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        var emailBody = result.value;
+
+                        // Prepare the payload for Power Automate
+                        var payload = {
+                            subject: document.getElementById("subject").value,
+                            senderName: document.getElementById("senderName").value,
+                            senderEmail: document.getElementById("senderEmail").value,
+                            sentDate: document.getElementById("sentDate").value,
+                            requestType: requestType,
+                            requestStatus: status,
+                            notes: notes || "",
+                            trackedDate: new Date().toISOString().split('T')[0],
+                            trackedBy: user ? user.emailAddress : "Unknown User",
+                            conversationId: item.conversationId || "",
+                            messageId: item.internetMessageId || item.itemId || "",
+                            emailBody: emailBody || ""
+                        };
                         
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            // Success
-                            showSuccess("✅ Request tracked successfully in SharePoint!");
-                            resetForm();
-                        } else {
-                            // Error
-                            showError("Error submitting to SharePoint: HTTP " + xhr.status + 
-                                      (xhr.responseText ? " - " + xhr.responseText : ""));
-                        }
+                        // Log the payload for debugging
+                        console.log("Sending payload to Power Automate:", payload);
                         
+                        // Send the data directly to Power Automate flow
+                        sendRequestToFlow(payload);
+                    } else {
+                        console.error("Failed to get email body:", result.error);
+                        showError("Error getting email body: " + result.error.message);
                         // Reset button state
                         document.getElementById("submit-btn").disabled = false;
                         document.getElementById("submit-btn").textContent = "Submit to SharePoint";
                     }
-                };
-                
-                    // Handle network errors
-                    xhr.onerror = function() {
-                        console.error("Network error occurred");
-                        showError("Network error occurred while submitting to SharePoint. Please check your connection.");
-                        document.getElementById("submit-btn").disabled = false;
-                        document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-                    };
-                    
-                    // Send the request with JSON payload (no token required for anonymous access)
-                    xhr.send(JSON.stringify(payloadData));
-                }
-                
+                });
+
             } catch (error) {
-                console.error("Error in submitToSharePoint:", error);
+                console.error("Error in submitToSharePoint (outer):", error);
                 showError("Error: " + error.message);
                 
                 // Reset button state
@@ -310,12 +307,57 @@
                 document.getElementById("submit-btn").textContent = "Submit to SharePoint";
             }
         }
+
+        // This function sends the request directly to the flow
+        function sendRequestToFlow(payloadData) {
+            // This URL must include the complete endpoint with the SAS token (sig parameter)
+            // The Power Automate flow must have "Allow anonymous requests" set to "On"
+            const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", flowUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.setRequestHeader("Accept", "application/json");
+            // No authentication header needed when using anonymous access with SAS token
         
-
-
+            // Set up handlers for success and error
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    console.log("Response status:", xhr.status);
+                    console.log("Response text:", xhr.responseText);
+                    
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success
+                        showSuccess("Request tracked successfully in SharePoint!");
+                        resetForm();
+                    } else {
+                        // Error
+                        showError("Error submitting to SharePoint: HTTP " + xhr.status + 
+                                    (xhr.responseText ? " - " + xhr.responseText : ""));
+                    }
+                    
+                    // Reset button state
+                    document.getElementById("submit-btn").disabled = false;
+                    document.getElementById("submit-btn").textContent = "Submit to SharePoint";
+                }
+            };
+        
+            // Handle network errors
+            xhr.onerror = function() {
+                console.error("Network error occurred");
+                showError("Network error occurred while submitting to SharePoint. Please check your connection.");
+                document.getElementById("submit-btn").disabled = false;
+                document.getElementById("submit-btn").textContent = "Submit to SharePoint";
+            };
+            
+            // Send the request with JSON payload (no token required for anonymous access)
+            xhr.send(JSON.stringify(payloadData));
+        }
+        
         function resetForm() {
             document.getElementById("status").value = "";
             document.getElementById("notes").value = "";
+            document.getElementById("requestType").value = "";
             document.getElementById("error-message").style.display = "none";
         }
     </script>

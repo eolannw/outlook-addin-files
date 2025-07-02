@@ -15,22 +15,31 @@ let currentUser;
 let existingRequests = [];
 
 // --- INITIALIZATION ---
-Office.initialize = function (reason) {
-    // Hide all panels initially
-    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-    document.getElementById("loading").style.display = "block";
+// FIX: Use Office.onReady for modern, reliable initialization.
+Office.onReady((info) => {
+    if (info.host === Office.HostType.Outlook) {
+        // Hide all panels initially
+        document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+        document.getElementById("loading").style.display = "block";
 
-    try {
-        currentItem = Office.context.mailbox.item;
-        currentUser = Office.context.mailbox.userProfile;
-        loadEmailData();
-        checkExistingRequests(); // New function call
-        setupGlobalEventHandlers();
-    } catch (error) {
-        showError("Error initializing add-in: " + error.message);
-        showPanel('request-form'); // Fallback to new request form
+        try {
+            currentItem = Office.context.mailbox.item;
+            currentUser = Office.context.mailbox.userProfile;
+
+            // Ensure currentItem is valid before proceeding
+            if (!currentItem) {
+                throw new Error("Cannot access email data. Please select an email.");
+            }
+
+            setupGlobalEventHandlers();
+            loadEmailData();
+            checkExistingRequests(); // This can now safely access currentItem
+        } catch (error) {
+            showError("Error initializing add-in: " + error.message);
+            showPanel('request-form'); // Fallback to new request form
+        }
     }
-};
+});
 
 function setupGlobalEventHandlers() {
     // New Request Form

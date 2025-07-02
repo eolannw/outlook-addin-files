@@ -15,7 +15,6 @@ let currentUser;
 let existingRequests = [];
 
 // --- INITIALIZATION ---
-// FIX: Use Office.onReady for modern, reliable initialization.
 Office.onReady(async (info) => {
     if (info.host === Office.HostType.Outlook) {
         // Hide all panels initially
@@ -23,22 +22,23 @@ Office.onReady(async (info) => {
         document.getElementById("loading").style.display = "block";
 
         try {
-            // FIX: Call setup function to ensure all UI elements are interactive.
             setupGlobalEventHandlers();
             
             currentUser = Office.context.mailbox.userProfile;
             currentItem = Office.context.mailbox.item;
             
-            // FIX: Populate form fields first, then check for existing requests.
-            // This ensures the form is always ready.
+            // FIX: The primary logic flow should be to check for requests first.
+            // The result of that check will then determine whether to show the
+            // existing requests list or a new, populated form.
             populateDropdowns();
-            loadEmailData();
             await checkExistingRequests();
 
         } catch (error) {
             console.error("Initialization error:", error);
             showError("Could not initialize the add-in. Please try again.");
-            showPanel('request-form'); // Show form as a fallback
+            // FIX: Load data before showing the form as a fallback.
+            loadEmailData();
+            showPanel('request-form');
         }
     }
 });
@@ -84,13 +84,11 @@ async function checkExistingRequests() {
 
     if (!conversationId) {
         showError("Could not get conversation ID. Showing new request form.");
-        // FIX: Ensure email data is loaded before showing the form.
+        // FIX: Always load email data before showing the new request form.
         loadEmailData();
         showPanel('request-form');
         return;
     }
-
-    // No need to check for placeholder URL as it's now fixed.
 
     try {
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
@@ -106,14 +104,15 @@ async function checkExistingRequests() {
         if (existingRequests && existingRequests.length > 0) {
             showRequestsPanel(existingRequests);
         } else {
-            // FIX: Ensure email data is loaded before showing the new request form.
+            // FIX: This is the primary path for showing a new request.
+            // Load the email data here to ensure the form is populated.
             loadEmailData();
             showPanel('request-form'); // No requests found, show new form
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
-        showError("Could not check for existing requests. Please try again or create a new one.");
-        // FIX: Ensure email data is loaded before showing the form as a fallback.
+        showError("Could not check for existing requests. Please try again.");
+        // FIX: Load data before showing the form as a fallback.
         loadEmailData();
         showPanel('request-form'); // Fallback to new form on error
     } finally {
@@ -162,8 +161,7 @@ function showRequestsPanel(requests) {
         // FIX: Pass false to prevent clearing the success message toast.
         showPanel('request-list-panel', false);
     } else {
-        // This case handles when the list is empty after an update or creation.
-        // It ensures the form is ready for a new entry.
+        // This case handles when the list is empty.
         loadEmailData();
         showPanel('request-form');
     }

@@ -162,9 +162,45 @@ async function checkExistingRequests() {
         const responseText = await response.text();
         console.log("Raw response:", responseText);
         
-        existingRequests = responseText ? JSON.parse(responseText) : [];
-        console.log("Parsed requests:", existingRequests);
-
+        // CRITICAL DEBUG: Add extremely detailed logging for the response structure
+        try {
+            console.log("Response type:", typeof responseText);
+            console.log("Response length:", responseText.length);
+            console.log("First 100 chars:", responseText.substring(0, 100));
+            
+            existingRequests = responseText ? JSON.parse(responseText) : [];
+            
+            // Inspect the parsed result structure in detail
+            console.log("Parsed requests array type:", Array.isArray(existingRequests));
+            console.log("Parsed requests length:", existingRequests.length);
+            
+            if (existingRequests.length > 0) {
+                // Log each request object structure
+                existingRequests.forEach((req, index) => {
+                    console.log(`Request #${index} keys:`, Object.keys(req));
+                    console.log(`Request #${index} RequestStatus:`, req.RequestStatus);
+                    console.log(`Request #${index} RequestStatus type:`, typeof req.RequestStatus);
+                    // Add a direct test for the problem
+                    if (req.RequestStatus && typeof req.RequestStatus.toLowerCase !== 'function') {
+                        console.error(`ERROR: RequestStatus is NOT a string in request #${index}:`, req.RequestStatus);
+                    }
+                });
+            }
+            
+            // Force-convert any problematic RequestStatus fields to strings
+            existingRequests = existingRequests.map(req => {
+                if (req.RequestStatus !== undefined && req.RequestStatus !== null) {
+                    return {
+                        ...req,
+                        RequestStatus: String(req.RequestStatus)
+                    };
+                }
+                return req;
+            });
+        } catch (parseError) {
+            console.error("Failed to parse or process response:", parseError);
+        }
+        
         if (existingRequests && existingRequests.length > 0) {
             showRequestsPanel(existingRequests);
         } else {
@@ -201,38 +237,89 @@ function showRequestsPanel(requests) {
     const container = document.getElementById('request-list-container');
     container.innerHTML = ''; // Clear previous list
     
-    // Add more extensive debug logging
-    console.log("Requests data received:", requests);
+    console.log("ENTERING showRequestsPanel with:", requests);
     
-    if (requests && requests.length > 0) {
-        requests.forEach((req) => {
+    // Super defensive check
+    if (!requests) {
+        console.error("requests is null or undefined");
+        requests = [];
+    }
+    
+    // Force convert to array if not already
+    if (!Array.isArray(requests)) {
+        console.error("requests is not an array, converting:", requests);
+        requests = [requests]; // Wrap in array
+    }
+    
+    if (requests.length > 0) {
+        requests.forEach((req, index) => {
             try {
+                // Debug each iteration
+                console.log(`Processing request #${index}:`, req);
+                
+                // Create the element
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'request-list-item';
-                const uniqueId = `req-${req.Id || 'unknown'}-${Math.random()}`;
                 
-                // Convert RequestStatus to string explicitly before using string methods
+                // Safely get ID
+                const reqId = (req && req.Id !== undefined && req.Id !== null) ? req.Id : `unknown-${index}`;
+                const uniqueId = `req-${reqId}-${Math.random().toString(36).substring(2, 8)}`;
+                
+                // ULTRA defensive status handling
                 let statusText = "Unknown";
                 let statusClass = "unknown";
                 
-                if (req.RequestStatus !== undefined && req.RequestStatus !== null) {
-                    statusText = String(req.RequestStatus);
-                    statusClass = String(req.RequestStatus).toLowerCase().replace(/\s+/g, '-');
+                // Check if RequestStatus exists at all
+                if (req && 'RequestStatus' in req) {
+                    const status = req.RequestStatus;
+                    
+                    // Get status text safely
+                    if (status === null || status === undefined) {
+                        statusText = "Unspecified";
+                    } else if (typeof status === 'string') {
+                        statusText = status;
+                    } else if (typeof status === 'object') {
+                        // It might be an object with a value property or something similar
+                        console.log("RequestStatus is an object:", status);
+                        statusText = JSON.stringify(status);
+                    } else {
+                        // Convert whatever it is to a string
+                        statusText = String(status);
+                    }
+                    
+                    // Get CSS class name safely
+                    try {
+                        statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
+                    } catch (e) {
+                        console.error("Error converting status to class:", e);
+                        statusClass = "unknown";
+                    }
                 }
                 
+                // Safely get other properties
+                const requestType = (req && req.RequestType) ? req.RequestType : 'Unknown Type';
+                const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
+                const priority = (req && req.Priority) ? req.Priority : 'N/A';
+                
+                // Build the HTML with safe values
                 itemDiv.innerHTML = `
-                    <input type="radio" name="requestSelection" value="${req.Id || ''}" id="${uniqueId}">
+                    <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
                     <label for="${uniqueId}" class="request-list-item-details">
-                        <strong>${req.RequestType || 'Unknown Type'}</strong>
+                        <strong>${requestType}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
-                        <small>Created: ${formatDate(req.TrackedDate || '')} | Priority: ${req.Priority || 'N/A'}</small>
+                        <small>Created: ${trackedDate} | Priority: ${priority}</small>
                     </label>
                 `;
                 container.appendChild(itemDiv);
+                
             } catch (err) {
-                console.error("Error processing request item:", err, req);
-                // Continue with the next item instead of failing completely
+                console.error(`Critical error processing request #${index}:`, err, req);
+                // Add a simple placeholder for this item
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'request-list-item error';
+                errorDiv.textContent = `Error displaying request #${index}: ${err.message}`;
+                container.appendChild(errorDiv);
             }
         });
 

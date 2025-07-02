@@ -259,19 +259,28 @@ function showRequestsPanel(requests) {
     const processedRequests = requests.map(req => {
         const processed = { ...req };
         
-        // Fix RequestStatus object
-        if (req.RequestStatus && typeof req.RequestStatus === 'object' && req.RequestStatus.Value) {
-            processed.RequestStatus = req.RequestStatus.Value;
+        // Process ALL fields that might be complex objects
+        Object.keys(req).forEach(key => {
+            if (req[key] && typeof req[key] === 'object' && req[key].Value !== undefined) {
+                console.log(`Converting complex object in field ${key}:`, req[key]);
+                processed[key] = req[key].Value;
+            }
+        });
+        
+        // Double-check the critical fields
+        if (req.RequestStatus && typeof req.RequestStatus === 'object') {
+            console.log("Processing RequestStatus:", req.RequestStatus);
+            processed.RequestStatus = req.RequestStatus.Value || "New";
         }
         
-        // Fix Priority object
-        if (req.Priority && typeof req.Priority === 'object' && req.Priority.Value) {
-            processed.Priority = req.Priority.Value;
+        if (req.Priority && typeof req.Priority === 'object') {
+            console.log("Processing Priority:", req.Priority);
+            processed.Priority = req.Priority.Value || "Medium";
         }
         
-        // Fix RequestType object
-        if (req.RequestType && typeof req.RequestType === 'object' && req.RequestType.Value) {
-            processed.RequestType = req.RequestType.Value;
+        if (req.RequestType && typeof req.RequestType === 'object') {
+            console.log("Processing RequestType:", req.RequestType);
+            processed.RequestType = req.RequestType.Value || "Unknown";
         }
         
         return processed;
@@ -293,43 +302,11 @@ function showRequestsPanel(requests) {
                     
                 const uniqueId = `req-${reqId}-${Math.random().toString(36).substring(2, 8)}`;
                 
-                // Process Priority field (double check to ensure it's a simple value)
-                let priorityText = 'Medium'; // Default value
-                if (req.Priority) {
-                    if (typeof req.Priority === 'string') {
-                        priorityText = req.Priority;
-                    } else if (typeof req.Priority === 'object' && req.Priority.Value) {
-                        priorityText = req.Priority.Value;
-                    } else {
-                        priorityText = 'Medium'; // Default if it's still an object somehow
-                    }
-                }
-                
-                // Process Status field (double check)
-                let statusText = "New";
-                let statusClass = "new";
-                if (req.RequestStatus) {
-                    if (typeof req.RequestStatus === 'string') {
-                        statusText = req.RequestStatus;
-                    } else if (typeof req.RequestStatus === 'object' && req.RequestStatus.Value) {
-                        statusText = req.RequestStatus.Value;
-                    } else {
-                        statusText = "New"; // Default
-                    }
-                    statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
-                }
-                
-                // Process RequestType field (double check)
-                let requestTypeText = "Unknown";
-                if (req.RequestType) {
-                    if (typeof req.RequestType === 'string') {
-                        requestTypeText = req.RequestType;
-                    } else if (typeof req.RequestType === 'object' && req.RequestType.Value) {
-                        requestTypeText = req.RequestType.Value;
-                    } else {
-                        requestTypeText = "Unknown"; 
-                    }
-                }
+                // Ensure we have string values for display
+                const requestTypeText = String(req.RequestType || "Unknown");
+                const statusText = String(req.RequestStatus || "New");
+                const statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
+                const priorityText = String(req.Priority || "Medium");
                 
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
@@ -337,9 +314,9 @@ function showRequestsPanel(requests) {
                 // Build the HTML with safe values and explicit text styling
                 itemDiv.innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
-                    <label for="${uniqueId}" class="request-list-item-details" style="color: #000000;">
-                        <strong style="color: #000000;">${requestTypeText}</strong>
-                        <span class="status-badge status-${statusClass}">${statusText}</span>
+                    <label for="${uniqueId}" class="request-list-item-details" style="color: #000000; font-weight: normal;">
+                        <strong style="color: #000000; font-weight: bold;">${requestTypeText}</strong>
+                        <span class="status-badge status-${statusClass}" style="color: #ffffff; background-color: #333333;">${statusText}</span>
                         <br>
                         <small style="color: #000000;">Created: ${trackedDate} | Priority: ${priorityText}</small>
                     </label>
@@ -350,6 +327,7 @@ function showRequestsPanel(requests) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'request-list-item error';
                 errorDiv.textContent = `Error displaying request #${index}: ${err.message}`;
+                errorDiv.style.color = "#cc0000";
                 container.appendChild(errorDiv);
             }
         });

@@ -11,7 +11,7 @@
     <style>
         /* Stryker branding colors */
         :root {
-            --stryker-orange: #ff9e18; /* Updated to requested color */
+            --stryker-orange: #ff9e18; /* Updated orange color */
             --stryker-blue: #0077C8;
         }
 
@@ -98,15 +98,12 @@
         }
         
         .request-list-item {
+            padding: 8px;
+            margin-bottom: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.2s;
             background-color: #f9f9f9;
+            color: #333; /* Darker text for better contrast */
         }
         
         .request-list-item:hover {
@@ -125,6 +122,12 @@
         
         .request-list-item-details strong {
             font-size: 1.1em;
+            color: #222; /* Even darker for important text */
+        }
+        
+        .request-list-item small {
+            color: #333; /* Ensure small text is dark enough */
+            font-weight: 500; /* Make it slightly bolder */
         }
         
         .status-badge {

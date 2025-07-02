@@ -62,6 +62,48 @@ function setupGlobalEventHandlers() {
 
 // --- DATA LOADING AND CHECKING ---
 
+function populateDropdowns() {
+    const requestTypes = [
+        "Compliance Request",
+        "Data Privacy Request",
+        "General Inquiry",
+        "Records Deletion"
+    ];
+    const statuses = [
+        "New",
+        "In Progress",
+        "On Hold",
+        "Completed",
+        "Cancelled"
+    ];
+
+    const requestTypeDropdown = document.getElementById("requestType");
+    const statusDropdown = document.getElementById("status");
+    const updateStatusDropdown = document.getElementById("update-status");
+
+    // Clear existing options and add a default placeholder
+    requestTypeDropdown.innerHTML = '<option value="">Select Request Type...</option>';
+    statusDropdown.innerHTML = '<option value="">Select Status...</option>';
+    updateStatusDropdown.innerHTML = ''; // No placeholder for the update form
+
+    requestTypes.forEach(type => {
+        const option = document.createElement("option");
+        option.value = type;
+        option.textContent = type;
+        requestTypeDropdown.appendChild(option);
+    });
+
+    statuses.forEach(status => {
+        const option = document.createElement("option");
+        option.value = status;
+        option.textContent = status;
+        
+        // Add the options to both the new request form and the update form
+        statusDropdown.appendChild(option.cloneNode(true));
+        updateStatusDropdown.appendChild(option.cloneNode(true));
+    });
+}
+
 function loadEmailData() {
     try {
         if (!currentItem) {

@@ -90,7 +90,7 @@ function toggleReportUrlField() {
 function toggleReportsRequestedField() {
     const requestType = document.getElementById("requestType").value;
     const reportsGroup = document.getElementById("reports-requested-group");
-    if (requestType === "Deal Reporting") {
+    if (requestType === "Compliance Request") {
         reportsGroup.style.display = "block";
     } else {
         reportsGroup.style.display = "none";
@@ -102,9 +102,10 @@ function toggleReportsRequestedField() {
 function populateDropdowns() {
     const requestTypes = [
         "Compliance Request",
-        "Data Privacy Request",
-        "General Inquiry",
-        "Records Deletion"
+        "Contract Extension",
+        "Contract Termination",
+        "Deal Reporting",
+        "Other"
     ];
     const statuses = [
         "New",

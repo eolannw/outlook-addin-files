@@ -181,6 +181,9 @@ function showPanel(panelId, clear=true) {
 function showRequestsPanel(requests) {
     const container = document.getElementById('request-list-container');
     container.innerHTML = ''; // Clear previous list
+    
+    // Add debug logging to see the actual data structure
+    console.log("Requests data received:", JSON.stringify(requests, null, 2));
 
     if (requests && requests.length > 0) {
         requests.forEach(req => {
@@ -188,13 +191,19 @@ function showRequestsPanel(requests) {
             itemDiv.className = 'request-list-item';
             // FIX: Ensure IDs are unique to prevent radio button conflicts.
             const uniqueId = `req-${req.Id}-${Math.random()}`;
+            
+            // FIX: Add defensive checks for all properties to handle possible null values
+            const requestStatus = req.RequestStatus || "Unknown";
+            const statusClass = typeof requestStatus === 'string' ? 
+                requestStatus.toLowerCase().replace(/\s+/g, '-') : 'unknown';
+                
             itemDiv.innerHTML = `
-                <input type="radio" name="requestSelection" value="${req.Id}" id="${uniqueId}">
+                <input type="radio" name="requestSelection" value="${req.Id || ''}" id="${uniqueId}">
                 <label for="${uniqueId}" class="request-list-item-details">
-                    <strong>${req.RequestType}</strong>
-                    <span class="status-badge status-${req.RequestStatus.toLowerCase().replace(' ', '-')}">${req.RequestStatus}</span>
+                    <strong>${req.RequestType || 'Unknown Type'}</strong>
+                    <span class="status-badge status-${statusClass}">${requestStatus}</span>
                     <br>
-                    <small>Created: ${formatDate(req.TrackedDate)} | Priority: ${req.Priority || 'N/A'}</small>
+                    <small>Created: ${formatDate(req.TrackedDate || '')} | Priority: ${req.Priority || 'N/A'}</small>
                 </label>
             `;
             container.appendChild(itemDiv);

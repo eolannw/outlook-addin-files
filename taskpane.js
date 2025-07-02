@@ -261,8 +261,12 @@ function showRequestsPanel(requests) {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'request-list-item';
                 
-                // Safely get ID
-                const reqId = (req && req.Id !== undefined && req.Id !== null) ? req.Id : `unknown-${index}`;
+                // FIX: Handle both ID and Id (case-insensitive)
+                const reqId = (req && (req.ID !== undefined || req.Id !== undefined)) ? 
+                    (req.ID !== undefined ? req.ID : req.Id) : `unknown-${index}`;
+                
+                console.log(`Request #${index} ID value:`, reqId);
+                    
                 const uniqueId = `req-${reqId}-${Math.random().toString(36).substring(2, 8)}`;
                 
                 // ULTRA defensive status handling
@@ -273,13 +277,15 @@ function showRequestsPanel(requests) {
                 if (req && 'RequestStatus' in req) {
                     const status = req.RequestStatus;
                     
-                    // Get status text safely
+                    // FIX: Handle RequestStatus as object with Value property (from SharePoint)
                     if (status === null || status === undefined) {
                         statusText = "Unspecified";
                     } else if (typeof status === 'string') {
                         statusText = status;
+                    } else if (typeof status === 'object' && status.Value !== undefined) {
+                        console.log("RequestStatus is an object with Value:", status.Value);
+                        statusText = status.Value;
                     } else if (typeof status === 'object') {
-                        // It might be an object with a value property or something similar
                         console.log("RequestStatus is an object:", status);
                         statusText = JSON.stringify(status);
                     } else {
@@ -296,16 +302,26 @@ function showRequestsPanel(requests) {
                     }
                 }
                 
+                // FIX: Handle RequestType the same way as RequestStatus
+                let requestTypeText = "Unknown Type";
+                if (req && req.RequestType) {
+                    if (typeof req.RequestType === 'string') {
+                        requestTypeText = req.RequestType;
+                    } else if (typeof req.RequestType === 'object' && req.RequestType.Value !== undefined) {
+                        requestTypeText = req.RequestType.Value;
+                    }
+                }
+                
                 // Safely get other properties
-                const requestType = (req && req.RequestType) ? req.RequestType : 'Unknown Type';
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
-                const priority = (req && req.Priority) ? req.Priority : 'N/A';
+                const priority = req && req.Priority ? 
+                    (typeof req.Priority === 'object' && req.Priority.Value ? req.Priority.Value : req.Priority) : 'N/A';
                 
                 // Build the HTML with safe values
                 itemDiv.innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
                     <label for="${uniqueId}" class="request-list-item-details">
-                        <strong>${requestType}</strong>
+                        <strong>${requestTypeText}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
                         <small>Created: ${trackedDate} | Priority: ${priority}</small>
@@ -334,21 +350,53 @@ function showRequestsPanel(requests) {
 
 function showUpdateForm() {
     const selectedId = document.querySelector('input[name="requestSelection"]:checked')?.value;
+    console.log("Selected ID for update:", selectedId);
+    
     if (!selectedId) {
         showError("Please select a request to update.");
         return;
     }
 
-    const selectedRequest = existingRequests.find(r => r.Id == selectedId);
+    // FIX: Make the ID comparison case-insensitive and handle both ID and Id properties
+    const selectedRequest = existingRequests.find(r => {
+        // Debug each comparison
+        const rId = r.ID !== undefined ? r.ID : r.Id;
+        console.log("Comparing:", rId, "with", selectedId, "result:", String(rId) === String(selectedId));
+        return String(rId) === String(selectedId);
+    });
+    
+    console.log("Found selected request:", selectedRequest);
+    
     if (!selectedRequest) {
         showError("Could not find the selected request.");
         return;
     }
 
+    // FIX: Handle RequestStatus properly for the dropdown
+    let statusValue = "";
+    if (selectedRequest.RequestStatus) {
+        if (typeof selectedRequest.RequestStatus === 'string') {
+            statusValue = selectedRequest.RequestStatus;
+        } else if (typeof selectedRequest.RequestStatus === 'object' && selectedRequest.RequestStatus.Value) {
+            statusValue = selectedRequest.RequestStatus.Value;
+        }
+    }
+    
     // Pre-populate the update form
-    document.getElementById('update-status').value = selectedRequest.RequestStatus;
+    document.getElementById('update-status').value = statusValue;
     document.getElementById('update-notes').value = selectedRequest.Notes || '';
-    document.getElementById('report-url').value = selectedRequest.ReportLink ? selectedRequest.ReportLink.Url : '';
+    
+    // FIX: Handle ReportLink from SharePoint format
+    let reportUrl = "";
+    if (selectedRequest.ReportLink) {
+        if (typeof selectedRequest.ReportLink === 'string') {
+            reportUrl = selectedRequest.ReportLink;
+        } else if (typeof selectedRequest.ReportLink === 'object' && selectedRequest.ReportLink.Url) {
+            reportUrl = selectedRequest.ReportLink.Url;
+        }
+    }
+    
+    document.getElementById('report-url').value = reportUrl;
     toggleReportUrlField(); // Show/hide report URL field based on status
 
     showPanel('update-form-panel');
@@ -444,6 +492,9 @@ async function submitUpdate() {
     const newStatus = document.getElementById('update-status').value;
     const reportUrl = document.getElementById('report-url').value;
 
+    // Add debug logging
+    console.log("Submitting update for ID:", selectedId, "New status:", newStatus);
+
     if (!newStatus) {
         showError("Please select a status.");
         return;
@@ -464,19 +515,34 @@ async function submitUpdate() {
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
         };
 
-        // FIX: Using the correct update flow URL
-        const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        console.log("Update payload:", payload);
 
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+        // Using the correct update flow URL
+        const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload) 
+        });
+
+        console.log("Update response status:", response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Update error response:", errorText);
+            throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+        }
 
         showSuccess("Request updated successfully!");
-        // FIX: Immediately refresh the list to show the update.
+        // Immediately refresh the list to show the update.
         await checkExistingRequests();
 
     } catch (error) {
+        console.error("Update submission error:", error);
         showError(error.message);
-        // FIX: Show the update form again on error so the user can retry.
+        // Show the update form again on error so the user can retry.
         showPanel('update-form-panel');
+    } finally {
+        showLoading(false);
     }
 }
 

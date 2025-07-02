@@ -247,20 +247,23 @@ async function submitUpdate() {
 
     } catch (error) {
         showError(error.message);
-        showLoading(false);
+        // FIX: Show the update form again on error so the user can retry.
+        showPanel('update-form-panel');
     }
 }
 
 // --- HELPER FUNCTIONS ---
 
 function getBodyAsText() {
-    return new Promise((resolve) => {
+    // FIX: Return a promise that can be rejected on failure.
+    return new Promise((resolve, reject) => {
         currentItem.body.getAsync(Office.CoercionType.Text, (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
                 resolve(result.value);
             } else {
                 console.error("Failed to get email body:", result.error);
-                resolve(""); // Resolve with empty string on failure
+                // Reject the promise so the main catch block can handle it.
+                reject(new Error("Could not retrieve email body."));
             }
         });
     });

@@ -90,10 +90,14 @@ function toggleReportUrlField() {
 function toggleReportsRequestedField() {
     const requestType = document.getElementById("requestType").value;
     const reportsGroup = document.getElementById("reports-requested-group");
-    if (requestType === "Compliance Request") {
+    const reportsInput = document.getElementById("reportsRequested");
+
+    if (requestType === "Compliance Request" || requestType === "Deal Reporting") {
         reportsGroup.style.display = "block";
+        reportsInput.value = 1;
     } else {
         reportsGroup.style.display = "none";
+        reportsInput.value = ""; // Clear value when hidden
     }
 }
 

@@ -9,34 +9,46 @@
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     
     <style>
+        /* Stryker branding colors */
+        :root {
+            --stryker-orange: #FF6B00;
+            --stryker-blue: #0077C8;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
         }
+        
         h1 {
-            color: #ff9e18;
+            color: var(--stryker-orange);
             margin-top: 0;
         }
+        
         h2 {
             font-weight: normal;
             color: #000;
             margin-top: -10px;
             margin-bottom: 20px;
         }
+        
         p.subtitle {
             border-bottom: 1px solid #ccc;
             padding-bottom: 15px;
             margin-bottom: 20px;
         }
+        
         .form-group {
             margin-bottom: 15px;
         }
+        
         label {
             display: block;
             margin-bottom: 5px;
             font-weight: 600;
         }
+        
         input, select, textarea {
             width: 100%;
             padding: 8px;
@@ -44,12 +56,14 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
+        
         textarea {
             resize: vertical;
             height: 100px;
         }
+        
         button {
-            background-color: #ff9e18;
+            background-color: var(--stryker-orange);
             color: white;
             border: none;
             padding: 10px 15px;
@@ -57,48 +71,62 @@
             border-radius: 4px;
             margin-right: 10px;
             margin-top: 10px;
+            transition: background-color 0.2s;
         }
+        
         button:hover {
-            background-color: #e68e16;
+            background-color: #e06000;
         }
+        
         .button-secondary {
             background-color: #f1f1f1;
             color: #333;
         }
+        
         .button-secondary:hover {
             background-color: #d0d0d0;
         }
+        
         .required {
             color: #d83b01;
         }
-        /* --- New Styles for Enhanced UI --- */
+        
+        /* --- Enhanced UI Styles --- */
         .panel {
             display: none; /* All panels hidden by default */
             animation: fadeIn 0.5s;
         }
+        
         .request-list-item {
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
             border-radius: 4px;
             padding: 10px;
             margin-bottom: 10px;
             display: flex;
             align-items: center;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            background-color: #f9f9f9;
         }
+        
         .request-list-item:hover {
-            background-color: #f1f1f1;
+            background-color: #f0f0f0;
+            border-color: var(--stryker-orange);
         }
+        
         .request-list-item input[type="radio"] {
             width: auto;
             margin-right: 15px;
         }
+        
         .request-list-item-details {
             flex-grow: 1;
         }
+        
         .request-list-item-details strong {
             font-size: 1.1em;
         }
+        
         .status-badge {
             display: inline-block;
             padding: 3px 8px;
@@ -107,32 +135,72 @@
             color: white;
             margin-left: 8px;
         }
-        .status-new { background-color: #0078d4; }
-        .status-in-progress { background-color: #ff9e18; }
+        
+        .status-new { background-color: var(--stryker-orange); }
+        .status-in-progress { background-color: var(--stryker-blue); }
         .status-pending-review { background-color: #8764b8; }
         .status-completed { background-color: #107c10; }
-        .status-on-hold { background-color: #5d5d5d; }
+        .status-on-hold { background-color: #FFC107; color: #333; }
+        .status-cancelled { background-color: #9E9E9E; }
+        .status-unknown { background-color: #757575; }
 
         .panel-actions {
             margin-top: 20px;
             border-top: 1px solid #eee;
             padding-top: 15px;
         }
+        
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+
+        /* Message notifications */
+        #error-message, #success-message {
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            animation: fadeIn 0.5s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        #error-message {
+            background-color: #d32f2f;
+            border: 1px solid #d32f2f;
+        }
+        
+        #success-message {
+            background-color: var(--stryker-orange);
+            border: 1px solid var(--stryker-orange);
+        }
+
+        /* Loading indicator */
+        #loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--stryker-orange);
+            font-weight: bold;
+        }
+
+        /* Error item in request list */
+        .request-list-item.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border-color: #ef9a9a;
         }
     </style>
 </head>
 
 <body>
-    <h1>Request</h1>
+    <h1>Track Request</h1>
     <p class="subtitle">Log this email request to SharePoint</p>
     
     <div id="loading">Loading email data...</div>
     
-    <div id="error-message" class="error" style="display:none;"></div>
-    <div id="success-message" class="success" style="display:none;"></div>
+    <div id="error-message" class="error"></div>
+    <div id="success-message" class="success"></div>
     
     <!-- Panel 1: New Request Form (existing form) -->
     <form id="request-form" class="panel">

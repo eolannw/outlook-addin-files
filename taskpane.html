@@ -103,7 +103,20 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             background-color: #f9f9f9;
-            color: #333; /* Darker text for better contrast */
+            color: #000000 !important; /* Force black text */
+        }
+        
+        .request-list-item label {
+            color: #000000 !important; /* Force black text on labels */
+        }
+        
+        .request-list-item small {
+            color: #000000 !important; /* Force black text on small elements */
+            font-weight: 500; /* Make it slightly bolder */
+        }
+        
+        .request-list-item strong {
+            color: #000000 !important; /* Force black text on strong elements */
         }
         
         .request-list-item:hover {
@@ -120,23 +133,10 @@
             flex-grow: 1;
         }
         
-        .request-list-item-details strong {
-            font-size: 1.1em;
-            color: #222; /* Even darker for important text */
-        }
-        
-        .request-list-item small {
-            color: #333; /* Ensure small text is dark enough */
-            font-weight: 500; /* Make it slightly bolder */
-        }
-        
+        /* Ensure status badges have enough contrast */
         .status-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            color: white;
-            margin-left: 8px;
+            color: white !important;
+            font-weight: bold;
         }
         
         .status-new { background-color: var(--stryker-orange); }

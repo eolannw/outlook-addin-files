@@ -311,19 +311,18 @@ function showRequestsPanel(requests) {
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
-                // Build the HTML with safe values and explicit text styling
-                // Using DIV containers to guarantee line breaks
+                // Build the HTML with safe values and new status badges
                 itemDiv.innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
-                    <label for="${uniqueId}" class="request-list-item-details" style="color: #000000; font-weight: normal; display: block;">
-                        <div style="margin-bottom: 5px;">
-                            <strong style="color: #000000; font-weight: bold; display: block;">${requestTypeText}</strong>
-                        </div>
-                        <div style="margin-bottom: 5px;">
-                            <span style="color: #FF6B00; font-weight: bold; display: block;">${statusText}</span>
+                    <label for="${uniqueId}" class="request-list-item-details">
+                        <div>
+                            <strong>${requestTypeText}</strong>
                         </div>
                         <div>
-                            <small style="color: #000000;">Created: ${trackedDate} | Priority: ${priorityText}</small>
+                            <span class="status-badge status-${statusClass}">${statusText}</span>
+                        </div>
+                        <div>
+                            <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
                         </div>
                     </label>
                 `;

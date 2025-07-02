@@ -3,10 +3,12 @@
 const CONFIG = {
     // Flow for creating a NEW request (your existing flow)
     REQUEST_CREATE_URL: "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg",
-    // Flow for LOOKING UP existing requests
-    REQUEST_LOOKUP_URL: "https://prod-139.westus.logic.azure.com:443/workflows/939c3e7c315b43b8b12300ea476dbbd2/triggers/manual/paths/invoke?api-version=2016-06-01",
-    // Flow for UPDATING an existing request
-    REQUEST_UPDATE_URL: "https://prod-188.westus.logic.azure.com:443/workflows/13af96bdb60f4199856014b64e9f3188/triggers/manual/paths/invoke?api-version=2016-06-01"
+    // FIX: Add a placeholder for the SAS token for the lookup flow.
+    // The user must replace this with the correct signature from Power Automate.
+    REQUEST_LOOKUP_URL: "https://prod-139.westus.logic.azure.com:443/workflows/939c3e7c315b43b8b12300ea476dbbd2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PASTE_LOOKUP_URL_SIG_HERE",
+    // FIX: Add a placeholder for the SAS token for the update flow.
+    // The user must replace this with the correct signature from Power Automate.
+    REQUEST_UPDATE_URL: "https://prod-188.westus.logic.azure.com:443/workflows/13af96bdb60f4199856014b64e9f3188/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PASTE_UPDATE_URL_SIG_HERE"
 };
 
 // Global state variables
@@ -16,27 +18,26 @@ let existingRequests = [];
 
 // --- INITIALIZATION ---
 // FIX: Use Office.onReady for modern, reliable initialization.
-Office.onReady((info) => {
+Office.onReady(async (info) => {
     if (info.host === Office.HostType.Outlook) {
         // Hide all panels initially
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
         document.getElementById("loading").style.display = "block";
 
         try {
-            currentItem = Office.context.mailbox.item;
             currentUser = Office.context.mailbox.userProfile;
+            currentItem = Office.context.mailbox.item;
+            
+            // FIX: Populate dropdowns and then check for requests.
+            // This ensures the form is ready if no requests are found.
+            populateDropdowns();
+            loadEmailData(); // Load email data for the new request form
+            await checkExistingRequests();
 
-            // Ensure currentItem is valid before proceeding
-            if (!currentItem) {
-                throw new Error("Cannot access email data. Please select an email.");
-            }
-
-            setupGlobalEventHandlers();
-            loadEmailData();
-            checkExistingRequests(); // This can now safely access currentItem
         } catch (error) {
-            showError("Error initializing add-in: " + error.message);
-            showPanel('request-form'); // Fallback to new request form
+            console.error("Initialization error:", error);
+            showError("Could not initialize the add-in. Please try again.");
+            showPanel('request-form'); // Show form as a fallback
         }
     }
 });
@@ -120,14 +121,18 @@ async function checkExistingRequests() {
 
 // --- UI NAVIGATION AND PANEL MANAGEMENT ---
 
-function showPanel(panelId) {
+function showPanel(panelId, clear=true) {
     document.getElementById("loading").style.display = 'none';
     document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
     const panel = document.getElementById(panelId);
     if (panel) {
         panel.style.display = 'block';
     }
-    clearMessages();
+    // FIX: Only clear messages if the 'clear' flag is true.
+    // This prevents the success toast from being hidden prematurely.
+    if (clear) {
+        clearMessages();
+    }
 }
 
 function showRequestsPanel(requests) {
@@ -149,7 +154,8 @@ function showRequestsPanel(requests) {
         container.appendChild(itemDiv);
     });
 
-    showPanel('request-list-panel');
+    // FIX: Pass false to prevent clearing the success message.
+    showPanel('request-list-panel', false);
 }
 
 function showUpdateForm() {
@@ -233,7 +239,7 @@ async function submitNewRequest() {
         // FIX: Optimistically update the UI to avoid race conditions.
         // Add the new request to our local array.
         const newRequestData = {
-            Id: "new", // Placeholder ID
+            Id: "new-" + Date.now(), // Placeholder ID
             RequestType: payload.requestType,
             RequestStatus: payload.requestStatus,
             TrackedDate: payload.trackedDate,

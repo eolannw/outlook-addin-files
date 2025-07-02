@@ -187,12 +187,13 @@ async function submitNewRequest() {
     showLoading(true, "Submitting new request...");
 
     try {
+        console.log("Getting email body...");
         const emailBody = await getBodyAsText();
+        
         const payload = {
             subject: document.getElementById("subject").value,
             senderName: document.getElementById("senderName").value,
             senderEmail: document.getElementById("senderEmail").value,
-            // FIX: Send the original ISO date string, not the formatted one.
             sentDate: currentItem.dateTimeCreated ? currentItem.dateTimeCreated.toISOString() : null,
             requestType: requestType,
             reportsRequested: parseInt(document.getElementById("reportsRequested").value, 10) || null,
@@ -206,18 +207,48 @@ async function submitNewRequest() {
             messageId: currentItem.internetMessageId || currentItem.itemId || "",
             emailBody: emailBody || ""
         };
+        
+        console.log("Submitting with payload:", payload);
+        console.log("Submitting to URL:", CONFIG.REQUEST_CREATE_URL);
 
-        const response = await fetch(CONFIG.REQUEST_CREATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        // DEBUGGING: Try-catch just for the fetch operation
+        try {
+            const response = await fetch(CONFIG.REQUEST_CREATE_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            
+            console.log("Response received:", response);
+            console.log("Response status:", response.status);
+            
+            // Try to get the response text for debugging
+            const responseText = await response.text();
+            console.log("Response text:", responseText);
+            
+            // Now we need to check if this was JSON
+            let responseData;
+            try {
+                responseData = JSON.parse(responseText);
+                console.log("Response JSON:", responseData);
+            } catch (e) {
+                console.log("Response was not valid JSON");
+            }
+            
+            if (response.status === 409) throw new Error("This email has already been tracked for this Request Type.");
+            if (!response.ok) throw new Error(`HTTP Error ${response.status}: ${responseText}`);
 
-        if (response.status === 409) throw new Error("This email has already been tracked for this Request Type.");
-        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-
-        showSuccess("Request created successfully!");
-        setTimeout(checkExistingRequests, 1500); // Refresh list after success
+            showSuccess("Request created successfully!");
+            resetForm(); // Reset the form after successful submission
+            setTimeout(checkExistingRequests, 1500); // Refresh list after success
+        } catch (fetchError) {
+            console.error("Fetch operation failed:", fetchError);
+            throw fetchError; // Re-throw for the outer catch
+        }
 
     } catch (error) {
-        showError(error.message);
-        // FIX: The loading screen is hidden by showError, so we just need to ensure the correct panel is visible.
+        console.error("Submit error:", error);
+        showError("Error submitting request: " + error.message);
         showPanel('request-form');
     }
 }
@@ -326,9 +357,12 @@ function showError(message) {
     const errorElement = document.getElementById("error-message");
     errorElement.textContent = message;
     errorElement.style.display = "block";
-    showLoading(false); // This will hide the loading message
-    // Ensure the error is visible by not hiding the panel it's in.
-    // The calling function should now handle which panel to show.
+    errorElement.style.color = "red";
+    errorElement.style.padding = "10px";
+    errorElement.style.border = "1px solid red";
+    errorElement.style.borderRadius = "4px";
+    errorElement.style.marginBottom = "15px";
+    showLoading(false);
 }
 
 function showSuccess(message) {

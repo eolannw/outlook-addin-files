@@ -237,6 +237,9 @@ function showRequestsPanel(requests) {
     const container = document.getElementById('request-list-container');
     container.innerHTML = ''; // Clear previous list
     
+    // Clear any lingering error messages when showing the list
+    clearMessages();
+    
     console.log("ENTERING showRequestsPanel with:", requests);
     
     // Super defensive check
@@ -314,8 +317,19 @@ function showRequestsPanel(requests) {
                 
                 // Safely get other properties
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
-                const priority = req && req.Priority ? 
-                    (typeof req.Priority === 'object' && req.Priority.Value ? req.Priority.Value : req.Priority) : 'N/A';
+                
+                // FIX: Priority display - extract the Value property if it's an object
+                let priorityText = 'N/A';
+                if (req && req.Priority) {
+                    if (typeof req.Priority === 'string') {
+                        priorityText = req.Priority;
+                    } else if (typeof req.Priority === 'object' && req.Priority.Value) {
+                        priorityText = req.Priority.Value;
+                    } else {
+                        console.log("Priority is complex:", req.Priority);
+                        priorityText = 'Medium'; // Default if we can't extract
+                    }
+                }
                 
                 // Build the HTML with safe values
                 itemDiv.innerHTML = `
@@ -324,7 +338,7 @@ function showRequestsPanel(requests) {
                         <strong>${requestTypeText}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
-                        <small>Created: ${trackedDate} | Priority: ${priority}</small>
+                        <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
                     </label>
                 `;
                 container.appendChild(itemDiv);
@@ -349,6 +363,8 @@ function showRequestsPanel(requests) {
 }
 
 function showUpdateForm() {
+    clearMessages(); // Clear any previous error messages
+    
     const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
     if (!selectedRadio) {
         showError("Please select a request to update.");
@@ -372,13 +388,8 @@ function showUpdateForm() {
         // Debug output for troubleshooting
         console.log(`Comparing request ID ${rId} (${typeof rId}) with selected ${selectedId} (${typeof selectedId})`);
         
-        // Convert both to numbers if possible (for SharePoint numeric IDs)
-        const numRId = parseInt(String(rId), 10);
-        const numSelId = parseInt(String(selectedId), 10);
-        
-        // First try exact match, then numeric match (handles string "18" vs number 18)
-        return String(rId) === String(selectedId) || 
-               (!isNaN(numRId) && !isNaN(numSelId) && numRId === numSelId);
+        // Convert both to strings for comparison (handles both numeric and string IDs)
+        return String(rId) === String(selectedId);
     });
     
     console.log("Found selected request:", selectedRequest);
@@ -629,21 +640,32 @@ function showError(message) {
     const errorElement = document.getElementById("error-message");
     errorElement.textContent = message;
     errorElement.style.display = "block";
-    errorElement.style.color = "red";
+    errorElement.style.color = "white";
     errorElement.style.padding = "10px";
-    errorElement.style.border = "1px solid red";
+    errorElement.style.border = "1px solid #d32f2f";
     errorElement.style.borderRadius = "4px";
     errorElement.style.marginBottom = "15px";
+    errorElement.style.backgroundColor = "#d32f2f";
     showLoading(false);
     
     // Log the error to console for debugging
     console.error("ERROR SHOWN TO USER:", message);
+    
+    // Auto-dismiss error after 6 seconds
+    setTimeout(clearMessages, 6000);
 }
 
 function showSuccess(message) {
     const successElement = document.getElementById("success-message");
     successElement.textContent = message;
     successElement.style.display = "block";
+    successElement.style.color = "white";
+    successElement.style.backgroundColor = "#FF6B00"; // Stryker orange
+    successElement.style.padding = "10px";
+    successElement.style.border = "1px solid #FF6B00";
+    successElement.style.borderRadius = "4px";
+    successElement.style.marginBottom = "15px";
+    
     setTimeout(clearMessages, 4000);
 }
 

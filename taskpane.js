@@ -577,7 +577,7 @@ async function submitUpdate() {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
             notes: document.getElementById('update-notes').value || "",
-            reportUrl: reportUrl || "",
+            reportUrl: reportUrl || null,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
         };
 

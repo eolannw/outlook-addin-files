@@ -209,46 +209,114 @@ async function submitNewRequest() {
         };
         
         console.log("Submitting with payload:", payload);
-        console.log("Submitting to URL:", CONFIG.REQUEST_CREATE_URL);
-
-        // DEBUGGING: Try-catch just for the fetch operation
-        try {
-            const response = await fetch(CONFIG.REQUEST_CREATE_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify(payload) 
+        
+        // Create a Promise that wraps XMLHttpRequest for better error handling
+        const submitRequest = () => {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                
+                // Log detailed state changes to help diagnose the issue
+                xhr.onreadystatechange = function() {
+                    console.log(`XHR state changed: ${xhr.readyState}, status: ${xhr.status}`);
+                };
+                
+                xhr.open("POST", CONFIG.REQUEST_CREATE_URL, true);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                
+                xhr.onload = function() {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve({
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            response: xhr.responseText
+                        });
+                    } else {
+                        reject({
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            response: xhr.responseText
+                        });
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    // This is critical - it will catch network errors
+                    console.error("XHR Network Error:", xhr);
+                    reject({
+                        status: 0,
+                        statusText: "Network Error - Could not connect to Power Automate",
+                        response: "The request couldn't be completed. This could be due to CORS restrictions, network issues, or an expired Power Automate URL."
+                    });
+                };
+                
+                xhr.ontimeout = function() {
+                    reject({
+                        status: 0,
+                        statusText: "Timeout Error",
+                        response: "The request timed out. Please try again or check your network connection."
+                    });
+                };
+                
+                xhr.timeout = 10000; // 10 seconds timeout
+                
+                try {
+                    xhr.send(JSON.stringify(payload));
+                } catch (e) {
+                    reject({
+                        status: 0,
+                        statusText: "Request Error",
+                        response: "Error sending request: " + e.message
+                    });
+                }
             });
-            
-            console.log("Response received:", response);
-            console.log("Response status:", response.status);
-            
-            // Try to get the response text for debugging
-            const responseText = await response.text();
-            console.log("Response text:", responseText);
-            
-            // Now we need to check if this was JSON
-            let responseData;
-            try {
-                responseData = JSON.parse(responseText);
-                console.log("Response JSON:", responseData);
-            } catch (e) {
-                console.log("Response was not valid JSON");
-            }
-            
-            if (response.status === 409) throw new Error("This email has already been tracked for this Request Type.");
-            if (!response.ok) throw new Error(`HTTP Error ${response.status}: ${responseText}`);
+        };
 
-            showSuccess("Request created successfully!");
-            resetForm(); // Reset the form after successful submission
-            setTimeout(checkExistingRequests, 1500); // Refresh list after success
-        } catch (fetchError) {
-            console.error("Fetch operation failed:", fetchError);
-            throw fetchError; // Re-throw for the outer catch
+        // First, try a test request to make sure we can make HTTP requests at all
+        console.log("Making test HTTP request to httpbin.org...");
+        try {
+            const testResponse = await fetch("https://httpbin.org/get?test=1");
+            console.log("Test request succeeded:", await testResponse.text());
+        } catch (testError) {
+            console.error("Test request failed:", testError);
+            throw new Error("Network connection test failed. Please check your internet connection.");
         }
+        
+        // Now try the actual request
+        console.log("Making actual request to Power Automate...");
+        const result = await submitRequest();
+        console.log("XHR Success:", result);
+        
+        // Try to parse the response as JSON
+        let responseData;
+        try {
+            responseData = JSON.parse(result.response);
+            console.log("Response data:", responseData);
+        } catch (e) {
+            console.log("Response is not valid JSON:", result.response);
+        }
+        
+        // Show success and reset the form
+        showSuccess("Request created successfully!");
+        resetForm();
+        setTimeout(checkExistingRequests, 1500);
 
     } catch (error) {
         console.error("Submit error:", error);
-        showError("Error submitting request: " + error.message);
+        let errorMessage = "Error submitting request: ";
+        
+        if (error.status === 0) {
+            errorMessage += "Network error - could not connect to Power Automate. ";
+            errorMessage += "This might be due to CORS restrictions or an expired URL.";
+        } else if (error.status === 409) {
+            errorMessage += "This email has already been tracked for this Request Type.";
+        } else if (error.response) {
+            errorMessage += error.response;
+        } else {
+            errorMessage += error.message || "Unknown error";
+        }
+        
+        showError(errorMessage);
+        // Keep the form visible with the entered data so the user can try again
         showPanel('request-form');
     }
 }
@@ -363,6 +431,9 @@ function showError(message) {
     errorElement.style.borderRadius = "4px";
     errorElement.style.marginBottom = "15px";
     showLoading(false);
+    
+    // Log the error to console for debugging
+    console.error("ERROR SHOWN TO USER:", message);
 }
 
 function showSuccess(message) {

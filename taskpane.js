@@ -1,241 +1,328 @@
-// Wait for Office to be ready before doing anything
+// --- CONFIGURATION ---
+// IMPORTANT: These URLs are for the Power Automate flows.
+const CONFIG = {
+    // Flow for creating a NEW request (your existing flow)
+    REQUEST_CREATE_URL: "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg",
+    // Flow for LOOKING UP existing requests
+    REQUEST_LOOKUP_URL: "https://prod-139.westus.logic.azure.com:443/workflows/939c3e7c315b43b8b12300ea476dbbd2/triggers/manual/paths/invoke?api-version=2016-06-01",
+    // Flow for UPDATING an existing request
+    REQUEST_UPDATE_URL: "https://prod-188.westus.logic.azure.com:443/workflows/13af96bdb60f4199856014b64e9f3188/triggers/manual/paths/invoke?api-version=2016-06-01"
+};
+
+// Global state variables
+let currentItem;
+let currentUser;
+let existingRequests = [];
+
+// --- INITIALIZATION ---
 Office.initialize = function (reason) {
-    // This function is called when the add-in is ready to start
+    // Hide all panels initially
+    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
     document.getElementById("loading").style.display = "block";
-    
+
     try {
+        currentItem = Office.context.mailbox.item;
+        currentUser = Office.context.mailbox.userProfile;
         loadEmailData();
+        checkExistingRequests(); // New function call
+        setupGlobalEventHandlers();
     } catch (error) {
         showError("Error initializing add-in: " + error.message);
+        showPanel('request-form'); // Fallback to new request form
     }
 };
 
+function setupGlobalEventHandlers() {
+    // New Request Form
+    document.getElementById("submit-btn").onclick = submitNewRequest;
+    document.getElementById("reset-btn").onclick = resetForm;
+    document.getElementById("requestType").onchange = toggleReportsRequestedField;
+
+    // Request List Panel
+    document.getElementById("update-selected-btn").onclick = () => showUpdateForm();
+    document.getElementById("create-new-btn").onclick = () => showPanel('request-form');
+    document.getElementById("refresh-list-btn").onclick = checkExistingRequests;
+
+    // Update Form Panel
+    document.getElementById("submit-update-btn").onclick = submitUpdate;
+    document.getElementById("back-to-list-btn").onclick = () => showPanel('request-list-panel');
+    document.getElementById("update-status").onchange = toggleReportUrlField;
+}
+
+// --- DATA LOADING AND CHECKING ---
+
 function loadEmailData() {
     try {
-        // Make sure we have access to the mailbox and item
-        if (!Office.context || !Office.context.mailbox || !Office.context.mailbox.item) {
-            showError("Cannot access email. Please make sure you're viewing an email message.");
+        if (!currentItem) {
+            showError("Cannot access email data.");
             return;
         }
-        
-        var item = Office.context.mailbox.item;
-        
-        // Direct property access (works with Mailbox API 1.1+)
-        document.getElementById("subject").value = item.subject || "(No subject)";
-        
-        // Get sender info - carefully check for null/undefined
-        var senderName = "";
-        var senderEmail = "";
-        if (item.from) {
-            senderName = item.from.displayName || "";
-            senderEmail = item.from.emailAddress || "";
-        }
-        document.getElementById("senderName").value = senderName || "(Unknown sender)";
-        document.getElementById("senderEmail").value = senderEmail || "(Unknown email)";
-        
-        // Get date - carefully check for null/undefined
-        var sentDate = "";
-        if (item.dateTimeCreated) {
-            sentDate = formatDate(item.dateTimeCreated);
-        }
-        document.getElementById("sentDate").value = sentDate || "(Unknown date)";
-        
-        // Hide loading, show form
-        document.getElementById("loading").style.display = "none";
-        document.getElementById("request-form").style.display = "block";
-        
+        document.getElementById("subject").value = currentItem.subject || "(No subject)";
+        const sender = currentItem.from;
+        document.getElementById("senderName").value = sender ? sender.displayName : "(Unknown sender)";
+        document.getElementById("senderEmail").value = sender ? sender.emailAddress : "(Unknown email)";
+        document.getElementById("sentDate").value = currentItem.dateTimeCreated ? formatDate(currentItem.dateTimeCreated, true) : "(Unknown date)";
     } catch (error) {
         showError("Error loading email data: " + error.message);
     }
 }
 
-function formatDate(date) {
-    if (!date) return "";
-    
+async function checkExistingRequests() {
+    showLoading(true, "Checking for existing requests...");
+    const conversationId = currentItem.conversationId;
+
+    if (!conversationId) {
+        showError("Could not get conversation ID. Showing new request form.");
+        showPanel('request-form');
+        return;
+    }
+
+    if (CONFIG.REQUEST_LOOKUP_URL.includes("PASTE_YOUR")) {
+        showError("Request Lookup Flow URL is not configured.");
+        showPanel('request-form');
+        return;
+    }
+
     try {
-        return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+        const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversationId: conversationId })
+        });
+
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+
+        existingRequests = await response.json();
+
+        if (existingRequests && existingRequests.length > 0) {
+            showRequestsPanel(existingRequests);
+        } else {
+            showPanel('request-form'); // No requests found, show new form
+        }
+    } catch (error) {
+        console.error("Error checking for existing requests:", error);
+        showError("Could not check for existing requests. Please try again or create a new one.");
+        showPanel('request-form'); // Fallback to new form on error
+    } finally {
+        showLoading(false);
+    }
+}
+
+// --- UI NAVIGATION AND PANEL MANAGEMENT ---
+
+function showPanel(panelId) {
+    document.getElementById("loading").style.display = 'none';
+    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+    const panel = document.getElementById(panelId);
+    if (panel) {
+        panel.style.display = 'block';
+    }
+    clearMessages();
+}
+
+function showRequestsPanel(requests) {
+    const container = document.getElementById('request-list-container');
+    container.innerHTML = ''; // Clear previous list
+
+    requests.forEach(req => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'request-list-item';
+        itemDiv.innerHTML = `
+            <input type="radio" name="requestSelection" value="${req.Id}" id="req-${req.Id}">
+            <label for="req-${req.Id}" class="request-list-item-details">
+                <strong>${req.RequestType}</strong>
+                <span class="status-badge status-${req.RequestStatus.toLowerCase().replace(' ', '-')}">${req.RequestStatus}</span>
+                <br>
+                <small>Created: ${formatDate(req.TrackedDate)} | Priority: ${req.Priority || 'N/A'}</small>
+            </label>
+        `;
+        container.appendChild(itemDiv);
+    });
+
+    showPanel('request-list-panel');
+}
+
+function showUpdateForm() {
+    const selectedId = document.querySelector('input[name="requestSelection"]:checked')?.value;
+    if (!selectedId) {
+        showError("Please select a request to update.");
+        return;
+    }
+
+    const selectedRequest = existingRequests.find(r => r.Id == selectedId);
+    if (!selectedRequest) {
+        showError("Could not find the selected request.");
+        return;
+    }
+
+    // Pre-populate the update form
+    document.getElementById('update-status').value = selectedRequest.RequestStatus;
+    document.getElementById('update-notes').value = selectedRequest.Notes || '';
+    document.getElementById('report-url').value = selectedRequest.ReportLink ? selectedRequest.ReportLink.Url : '';
+    toggleReportUrlField(); // Show/hide report URL field based on status
+
+    showPanel('update-form-panel');
+}
+
+// --- FORM SUBMISSION LOGIC (CREATE & UPDATE) ---
+
+async function submitNewRequest() {
+    // Validation
+    const requestType = document.getElementById("requestType").value;
+    const status = document.getElementById("status").value;
+    if (!requestType || !status) {
+        showError("Request Type and Status are required.");
+        return;
+    }
+
+    showLoading(true, "Submitting new request...");
+
+    try {
+        const emailBody = await getBodyAsText();
+        const payload = {
+            subject: document.getElementById("subject").value,
+            senderName: document.getElementById("senderName").value,
+            senderEmail: document.getElementById("senderEmail").value,
+            sentDate: document.getElementById("sentDate").value,
+            requestType: requestType,
+            reportsRequested: parseInt(document.getElementById("reportsRequested").value, 10) || null,
+            requestStatus: status,
+            notes: document.getElementById("notes").value || "",
+            priority: document.getElementById("priority").value,
+            dueDate: document.getElementById("dueDate").value || null,
+            trackedDate: new Date().toISOString(),
+            trackedBy: currentUser ? currentUser.emailAddress : "Unknown User",
+            conversationId: currentItem.conversationId || "",
+            messageId: currentItem.internetMessageId || currentItem.itemId || "",
+            emailBody: emailBody || ""
+        };
+
+        const response = await fetch(CONFIG.REQUEST_CREATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+        if (response.status === 409) throw new Error("This email has already been tracked for this Request Type.");
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+
+        showSuccess("Request created successfully!");
+        setTimeout(checkExistingRequests, 1500); // Refresh list after success
+
+    } catch (error) {
+        showError(error.message);
+        showLoading(false);
+    }
+}
+
+async function submitUpdate() {
+    const selectedId = document.querySelector('input[name="requestSelection"]:checked')?.value;
+    const newStatus = document.getElementById('update-status').value;
+    const reportUrl = document.getElementById('report-url').value;
+
+    if (!newStatus) {
+        showError("Please select a status.");
+        return;
+    }
+    if (newStatus === 'Completed' && !reportUrl) {
+        showError("A Report Link is required for 'Completed' status.");
+        return;
+    }
+
+    showLoading(true, "Submitting update...");
+
+    try {
+        const payload = {
+            requestId: parseInt(selectedId, 10),
+            requestStatus: newStatus,
+            notes: document.getElementById('update-notes').value || "",
+            reportUrl: reportUrl || "",
+            updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
+        };
+
+        const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+        if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+
+        showSuccess("Request updated successfully!");
+        setTimeout(checkExistingRequests, 1500); // Refresh list after success
+
+    } catch (error) {
+        showError(error.message);
+        showLoading(false);
+    }
+}
+
+// --- HELPER FUNCTIONS ---
+
+function getBodyAsText() {
+    return new Promise((resolve) => {
+        currentItem.body.getAsync(Office.CoercionType.Text, (result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                resolve(result.value);
+            } else {
+                console.error("Failed to get email body:", result.error);
+                resolve(""); // Resolve with empty string on failure
+            }
+        });
+    });
+}
+
+function toggleReportsRequestedField() {
+    const requestType = document.getElementById("requestType").value;
+    const reportsGroup = document.getElementById("reports-requested-group");
+    reportsGroup.style.display = (requestType === "Compliance Request") ? "block" : "none";
+    if (requestType === "Compliance Request") {
+        document.getElementById("reportsRequested").value = "1";
+    }
+}
+
+function toggleReportUrlField() {
+    const status = document.getElementById('update-status').value;
+    const reportGroup = document.getElementById('report-url-group');
+    reportGroup.style.display = (status === 'Completed') ? 'block' : 'none';
+}
+
+function resetForm() {
+    document.getElementById("request-form").reset();
+    document.getElementById("priority").value = "Medium";
+    toggleReportsRequestedField();
+    clearMessages();
+}
+
+function formatDate(dateString, includeTime = false) {
+    if (!dateString) return "";
+    try {
+        const date = new Date(dateString);
+        if (includeTime) return date.toLocaleString();
+        return date.toLocaleDateString();
     } catch (e) {
-        return date.toString();
+        return dateString;
+    }
+}
+
+function showLoading(show, message = "Loading...") {
+    const loading = document.getElementById("loading");
+    if (show) {
+        loading.textContent = message;
+        loading.style.display = 'block';
+        document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+    } else {
+        loading.style.display = 'none';
     }
 }
 
 function showError(message) {
-    var errorElement = document.getElementById("error-message");
+    const errorElement = document.getElementById("error-message");
     errorElement.textContent = message;
     errorElement.style.display = "block";
-    document.getElementById("loading").style.display = "none";
+    showLoading(false);
 }
 
 function showSuccess(message) {
-    var successElement = document.getElementById("success-message");
+    const successElement = document.getElementById("success-message");
     successElement.textContent = message;
     successElement.style.display = "block";
-    setTimeout(function() {
-        successElement.style.display = "none";
-    }, 5000);
+    setTimeout(clearMessages, 4000);
 }
 
-// Set up event handlers when the page has loaded
-window.onload = function() {
-    document.getElementById("submit-btn").onclick = submitToSharePoint;
-    document.getElementById("reset-btn").onclick = resetForm;
-    document.getElementById("requestType").onchange = toggleReportsRequestedField;
-};
-
-function toggleReportsRequestedField() {
-    var requestType = document.getElementById("requestType").value;
-    var reportsGroup = document.getElementById("reports-requested-group");
-    var reportsInput = document.getElementById("reportsRequested");
-
-    if (requestType === "Compliance Request") {
-        reportsGroup.style.display = "block";
-    } else {
-        reportsGroup.style.display = "none";
-        reportsInput.value = ""; // Clear the value when hidden
-    }
-}
-
-async function submitToSharePoint() {
-    try {
-        var status = document.getElementById("status").value;
-        var notes = document.getElementById("notes").value;
-        var requestType = document.getElementById("requestType").value;
-        var reportsRequested = document.getElementById("reportsRequested").value;
-        
-        // Get new field values
-        var priority = document.getElementById("priority").value;
-        var dueDate = document.getElementById("dueDate").value;
-
-        if (!status) {
-            showError("Please select a request status");
-            return;
-        }
-        if (!requestType) {
-            showError("Please select a request type");
-            return;
-        }
-
-        if (requestType === "Compliance Request" && reportsRequested && isNaN(parseInt(reportsRequested, 10))) {
-            showError("Please enter a valid number for Reports Requested.");
-            return;
-        }
-        
-        // Show loading state
-        document.getElementById("submit-btn").disabled = true;
-        document.getElementById("submit-btn").textContent = "Submitting...";
-        
-        // Get email data and form inputs
-        var item = Office.context.mailbox.item;
-        var user = Office.context.mailbox.userProfile;
-
-        // Get email body
-        item.body.getAsync("text", async function (result) {
-            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                var emailBody = result.value;
-
-                // Prepare the payload for Power Automate
-                var payload = {
-                    subject: document.getElementById("subject").value,
-                    senderName: document.getElementById("senderName").value,
-                    senderEmail: document.getElementById("senderEmail").value,
-                    sentDate: document.getElementById("sentDate").value,
-                    requestType: requestType,
-                    reportsRequested: reportsRequested ? parseInt(reportsRequested, 10) : null,
-                    requestStatus: status,
-                    notes: notes || "",
-                    // Add new and automatic fields
-                    priority: priority,
-                    dueDate: dueDate || null,
-                    assignedTo: user ? user.emailAddress : "",
-                    // ---
-                    trackedDate: new Date().toISOString().split('T')[0],
-                    trackedBy: user ? user.emailAddress : "Unknown User",
-                    conversationId: item.conversationId || "",
-                    messageId: item.internetMessageId || item.itemId || "",
-                    emailBody: emailBody || ""
-                };
-                
-                // Log the payload for debugging
-                console.log("Sending payload to Power Automate:", payload);
-                
-                // Send the data directly to Power Automate flow
-                sendRequestToFlow(payload);
-            } else {
-                console.error("Failed to get email body:", result.error);
-                showError("Error getting email body: " + result.error.message);
-                // Reset button state
-                document.getElementById("submit-btn").disabled = false;
-                document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-            }
-        });
-
-    } catch (error) {
-        console.error("Error in submitToSharePoint (outer):", error);
-        showError("Error: " + error.message);
-        
-        // Reset button state
-        document.getElementById("submit-btn").disabled = false;
-        document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-    }
-}
-
-// This function sends the request directly to the flow
-function sendRequestToFlow(payloadData) {
-    // This URL must include the complete endpoint with the SAS token (sig parameter)
-    // The Power Automate flow must have "Allow anonymous requests" set to "On"
-    const flowUrl = "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg";
-    
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", flowUrl, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.setRequestHeader("Accept", "application/json");
-    // No authentication header needed when using anonymous access with SAS token
-
-    // Set up handlers for success and error
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            console.log("Response status:", xhr.status);
-            console.log("Response text:", xhr.responseText);
-            
-            if (xhr.status >= 200 && xhr.status < 300) {
-                // Success
-                showSuccess("Request tracked successfully in the SharePoint list!");
-                resetForm();
-            } else if (xhr.status === 409) {
-                // Duplicate found
-                showError("This email has already been tracked for this Request Type. Please visit the SharePoint site.");
-            } else {
-                // Other Error
-                showError("Error submitting to SharePoint List: HTTP " + xhr.status + 
-                            (xhr.responseText ? " - " + JSON.parse(xhr.responseText).message : ""));
-            }
-            
-            // Reset button state
-            document.getElementById("submit-btn").disabled = false;
-            document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-        }
-    };
-
-    // Handle network errors
-    xhr.onerror = function() {
-        console.error("Network error occurred");
-        showError("Network error occurred while submitting to the SharePoint list. Please check your connection.");
-        document.getElementById("submit-btn").disabled = false;
-        document.getElementById("submit-btn").textContent = "Submit to SharePoint";
-    };
-    
-    // Send the request with JSON payload (no token required for anonymous access)
-    xhr.send(JSON.stringify(payloadData));
-}
-
-function resetForm() {
-    document.getElementById("status").value = "";
-    document.getElementById("notes").value = "";
-    document.getElementById("requestType").value = "";
-    document.getElementById("reportsRequested").value = "";
-    document.getElementById("reports-requested-group").style.display = "none";
+function clearMessages() {
     document.getElementById("error-message").style.display = "none";
-    // Reset new fields
-    document.getElementById("priority").value = "Medium";
-    document.getElementById("dueDate").value = "";
+    document.getElementById("success-message").style.display = "none";
 }

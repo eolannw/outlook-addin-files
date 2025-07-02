@@ -60,6 +60,51 @@ function setupGlobalEventHandlers() {
     document.getElementById("update-status").onchange = toggleReportUrlField;
 }
 
+// --- UI TOGGLES ---
+
+function toggleReportUrlField() {
+    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
+    if (!selectedRadio) return;
+
+    const selectedId = selectedRadio.value;
+    const selectedRequest = existingRequests.find(r => {
+        const rId = r.ID !== undefined ? r.ID : r.Id;
+        return String(rId) === String(selectedId);
+    });
+
+    if (!selectedRequest) return;
+
+    const requestType = selectedRequest.RequestType;
+    const status = document.getElementById('update-status').value;
+    const reportUrlGroup = document.getElementById('report-url-group');
+    const reportUrlInput = document.getElementById('report-url');
+
+    // Show the Report Link field only when the status is 'Completed'.
+    if (status === 'Completed') {
+        reportUrlGroup.style.display = 'block';
+        // It's only REQUIRED if it's a Compliance Request.
+        if (requestType === 'Compliance Request') {
+            reportUrlInput.setAttribute('required', 'true');
+        } else {
+            reportUrlInput.removeAttribute('required');
+        }
+    } else {
+        // Hide the field and remove the required attribute for all other statuses.
+        reportUrlGroup.style.display = 'none';
+        reportUrlInput.removeAttribute('required');
+    }
+}
+
+function toggleReportsRequestedField() {
+    const requestType = document.getElementById("requestType").value;
+    const reportsGroup = document.getElementById("reports-requested-group");
+    if (requestType === "Deal Reporting") {
+        reportsGroup.style.display = "block";
+    } else {
+        reportsGroup.style.display = "none";
+    }
+}
+
 // --- DATA LOADING AND CHECKING ---
 
 function populateDropdowns() {
@@ -497,20 +542,32 @@ async function submitNewRequest() {
 }
 
 async function submitUpdate() {
-    const selectedId = document.querySelector('input[name="requestSelection"]:checked')?.value;
-    const newStatus = document.getElementById('update-status').value;
-    const reportUrl = document.getElementById('report-url').value;
-
-    // Add debug logging
-    console.log("Submitting update for ID:", selectedId, "New status:", newStatus);
-
-    if (!newStatus) {
-        showError("Please select a status.");
+    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
+    if (!selectedRadio) {
+        showError("Please select a request to update.");
         return;
     }
-    if (newStatus === 'Completed' && !reportUrl) {
-        showError("A Report Link is required for 'Completed' status.");
+    const selectedId = selectedRadio.value;
+
+    const selectedRequest = existingRequests.find(r => {
+        const rId = r.ID !== undefined ? r.ID : r.Id;
+        return String(rId) === String(selectedId);
+    });
+
+    if (!selectedRequest) {
+        showError("Could not find the selected request.");
         return;
+    }
+
+    const newStatus = document.getElementById('update-status').value;
+    const reportUrl = document.getElementById('report-url').value;
+    const requestType = selectedRequest.RequestType;
+
+    // VALIDATION: Enforce Report Link requirement before submitting.
+    if (requestType === 'Compliance Request' && newStatus === 'Completed' && !reportUrl) {
+        showError('A Report Link is required to mark a Compliance Request as Completed.');
+        document.getElementById('report-url').focus(); // Focus the input for user convenience
+        return; // Stop the submission
     }
 
     showLoading(true, "Submitting update...");
@@ -570,21 +627,6 @@ function getBodyAsText() {
             }
         });
     });
-}
-
-function toggleReportsRequestedField() {
-    const requestType = document.getElementById("requestType").value;
-    const reportsGroup = document.getElementById("reports-requested-group");
-    reportsGroup.style.display = (requestType === "Compliance Request") ? "block" : "none";
-    if (requestType === "Compliance Request") {
-        document.getElementById("reportsRequested").value = "1";
-    }
-}
-
-function toggleReportUrlField() {
-    const status = document.getElementById('update-status').value;
-    const reportGroup = document.getElementById('report-url-group');
-    reportGroup.style.display = (status === 'Completed') ? 'block' : 'none';
 }
 
 function resetForm() {

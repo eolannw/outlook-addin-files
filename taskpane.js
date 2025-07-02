@@ -349,20 +349,36 @@ function showRequestsPanel(requests) {
 }
 
 function showUpdateForm() {
-    const selectedId = document.querySelector('input[name="requestSelection"]:checked')?.value;
-    console.log("Selected ID for update:", selectedId);
-    
-    if (!selectedId) {
+    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
+    if (!selectedRadio) {
         showError("Please select a request to update.");
         return;
     }
-
-    // FIX: Make the ID comparison case-insensitive and handle both ID and Id properties
+    
+    const selectedId = selectedRadio.value;
+    console.log("Selected ID for update:", selectedId, "type:", typeof selectedId);
+    
+    // CRITICAL DEBUG: Dump all the IDs in the existingRequests array for comparison
+    console.log("All request IDs in memory:", existingRequests.map(r => {
+        const id = r.ID !== undefined ? r.ID : r.Id;
+        return {id: id, type: typeof id};
+    }));
+    
+    // FIX: Use a more flexible comparison that handles number vs string issues
     const selectedRequest = existingRequests.find(r => {
-        // Debug each comparison
+        // Get ID regardless of case (ID or Id)
         const rId = r.ID !== undefined ? r.ID : r.Id;
-        console.log("Comparing:", rId, "with", selectedId, "result:", String(rId) === String(selectedId));
-        return String(rId) === String(selectedId);
+        
+        // Debug output for troubleshooting
+        console.log(`Comparing request ID ${rId} (${typeof rId}) with selected ${selectedId} (${typeof selectedId})`);
+        
+        // Convert both to numbers if possible (for SharePoint numeric IDs)
+        const numRId = parseInt(String(rId), 10);
+        const numSelId = parseInt(String(selectedId), 10);
+        
+        // First try exact match, then numeric match (handles string "18" vs number 18)
+        return String(rId) === String(selectedId) || 
+               (!isNaN(numRId) && !isNaN(numSelId) && numRId === numSelId);
     });
     
     console.log("Found selected request:", selectedRequest);

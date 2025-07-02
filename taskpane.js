@@ -93,6 +93,7 @@ async function checkExistingRequests() {
     }
 
     try {
+        // FIX: Using the correct lookup flow URL
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -229,9 +230,24 @@ async function submitNewRequest() {
             throw new Error(`Submission failed. Status: ${response.status}. Details: ${errorBody}`);
         }
         
+        // FIX: Optimistically update the UI to avoid race conditions.
+        // Add the new request to our local array.
+        const newRequestData = {
+            Id: "new", // Placeholder ID
+            RequestType: payload.requestType,
+            RequestStatus: payload.requestStatus,
+            TrackedDate: payload.trackedDate,
+            Priority: payload.priority
+        };
+        existingRequests.push(newRequestData);
+        
+        // Show the success message and immediately switch to the list view.
         showSuccess("Request created successfully!");
+        showRequestsPanel(existingRequests);
         resetForm();
-        setTimeout(checkExistingRequests, 1500);
+
+        // Refresh the list from the server after a delay to get the real data.
+        setTimeout(checkExistingRequests, 2500);
 
     } catch (error) {
         console.error("Submit error details:", error);
@@ -267,6 +283,7 @@ async function submitUpdate() {
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
         };
 
+        // FIX: Using the correct update flow URL
         const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
@@ -317,7 +334,8 @@ function resetForm() {
     document.getElementById("request-form").reset();
     document.getElementById("priority").value = "Medium";
     toggleReportsRequestedField();
-    clearMessages();
+    // FIX: Do not clear messages here, as it hides the success toast.
+    // clearMessages(); 
 }
 
 function formatDate(dateString, includeTime = false) {

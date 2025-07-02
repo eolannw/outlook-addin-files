@@ -312,11 +312,13 @@ function showRequestsPanel(requests) {
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
                 // Build the HTML with safe values and explicit text styling
+                // FIXED: Status badge now appears on its own line and is styled in Stryker orange
                 itemDiv.innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
                     <label for="${uniqueId}" class="request-list-item-details" style="color: #000000; font-weight: normal;">
                         <strong style="color: #000000; font-weight: bold;">${requestTypeText}</strong>
-                        <span class="status-badge status-${statusClass}" style="color: #ffffff; background-color: #333333;">${statusText}</span>
+                        <br>
+                        <span style="color: #FF6B00; font-weight: bold;">${statusText}</span>
                         <br>
                         <small style="color: #000000;">Created: ${trackedDate} | Priority: ${priorityText}</small>
                     </label>

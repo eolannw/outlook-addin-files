@@ -66,28 +66,61 @@
             color: #333;
         }
         .button-secondary:hover {
-            background-color: #e1e1e1;
-        }
-        .error {
-            color: #d83b01;
-            background-color: #fed9cc;
-            padding: 10px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
-        .success {
-            color: #107c10;
-            background-color: #dff6dd;
-            padding: 10px;
-            margin: 15px 0;
-            border-radius: 4px;
-        }
-        #loading {
-            text-align: center;
-            margin: 50px 0;
+            background-color: #d0d0d0;
         }
         .required {
             color: #d83b01;
+        }
+        /* --- New Styles for Enhanced UI --- */
+        .panel {
+            display: none; /* All panels hidden by default */
+            animation: fadeIn 0.5s;
+        }
+        .request-list-item {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .request-list-item:hover {
+            background-color: #f1f1f1;
+        }
+        .request-list-item input[type="radio"] {
+            width: auto;
+            margin-right: 15px;
+        }
+        .request-list-item-details {
+            flex-grow: 1;
+        }
+        .request-list-item-details strong {
+            font-size: 1.1em;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            color: white;
+            margin-left: 8px;
+        }
+        .status-new { background-color: #0078d4; }
+        .status-in-progress { background-color: #ff9e18; }
+        .status-pending-review { background-color: #8764b8; }
+        .status-completed { background-color: #107c10; }
+        .status-on-hold { background-color: #5d5d5d; }
+
+        .panel-actions {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -101,7 +134,8 @@
     <div id="error-message" class="error" style="display:none;"></div>
     <div id="success-message" class="success" style="display:none;"></div>
     
-    <form id="request-form" style="display:none;">
+    <!-- Panel 1: New Request Form (existing form) -->
+    <form id="request-form" class="panel">
         <div class="form-group">
             <label for="subject">Subject</label>
             <input type="text" id="subject" readonly />
@@ -174,6 +208,48 @@
 
         <button id="submit-btn" type="button">Submit to SharePoint</button>
         <button id="reset-btn" type="button" class="button-secondary">Reset Form</button>
+    </form>
+
+    <!-- Panel 2: Existing Requests List -->
+    <div id="request-list-panel" class="panel">
+        <h2>Existing Requests</h2>
+        <p>The following requests have been logged for this conversation.</p>
+        <div id="request-list-container">
+            <!-- Request items will be dynamically inserted here -->
+        </div>
+        <div class="panel-actions">
+            <button id="update-selected-btn" type="button">Update Selected</button>
+            <button id="create-new-btn" type="button" class="button-secondary">Create New Request</button>
+            <button id="refresh-list-btn" type="button" class="button-secondary">Refresh</button>
+        </div>
+    </div>
+
+    <!-- Panel 3: Update Request Form -->
+    <form id="update-form-panel" class="panel">
+        <h2>Update Request</h2>
+        <div class="form-group">
+            <label for="update-status">Request Status <span class="required">*</span></label>
+            <select id="update-status" required>
+                <option value="">Select Status...</option>
+                <option value="New">New</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Pending Review">Pending Review</option>
+                <option value="Completed">Completed</option>
+                <option value="On Hold">On Hold</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="update-notes">Additional Notes</label>
+            <textarea id="update-notes" placeholder="Enter any additional notes..."></textarea>
+        </div>
+        <div class="form-group" id="report-url-group" style="display:none;">
+            <label for="report-url">Report Link (URL)</label>
+            <input type="url" id="report-url" placeholder="https://..."/>
+        </div>
+        <div class="panel-actions">
+            <button id="submit-update-btn" type="button">Submit Update</button>
+            <button id="back-to-list-btn" type="button" class="button-secondary">Back to List</button>
+        </div>
     </form>
 
     <script src="taskpane.js"></script>

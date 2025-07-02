@@ -124,7 +124,6 @@ async function checkExistingRequests() {
     showLoading(true, "Checking for existing requests...");
     const conversationId = currentItem.conversationId;
     
-    // Log the conversation ID we're using
     console.log("Looking up requests for conversation ID:", conversationId);
 
     if (!conversationId) {
@@ -135,7 +134,6 @@ async function checkExistingRequests() {
     }
 
     try {
-        // Log the URL we're using
         console.log("Calling Power Automate with URL:", CONFIG.REQUEST_LOOKUP_URL);
         
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
@@ -147,7 +145,6 @@ async function checkExistingRequests() {
         console.log("Response status:", response.status, response.statusText);
 
         if (!response.ok) {
-            // Try to get more information about the error
             let errorText = "";
             try {
                 errorText = await response.text();
@@ -158,54 +155,58 @@ async function checkExistingRequests() {
             throw new Error(`HTTP error ${response.status}: ${errorText}`);
         }
 
-        // Parse response more carefully
         const responseText = await response.text();
         console.log("Raw response:", responseText);
         
-        // CRITICAL DEBUG: Add extremely detailed logging for the response structure
         try {
             console.log("Response type:", typeof responseText);
             console.log("Response length:", responseText.length);
             console.log("First 100 chars:", responseText.substring(0, 100));
             
-            existingRequests = responseText ? JSON.parse(responseText) : [];
+            const rawRequests = responseText ? JSON.parse(responseText) : [];
             
-            // Inspect the parsed result structure in detail
-            console.log("Parsed requests array type:", Array.isArray(existingRequests));
-            console.log("Parsed requests length:", existingRequests.length);
-            
-            if (existingRequests.length > 0) {
-                // Log each request object structure
-                existingRequests.forEach((req, index) => {
-                    console.log(`Request #${index} keys:`, Object.keys(req));
-                    console.log(`Request #${index} RequestStatus:`, req.RequestStatus);
-                    console.log(`Request #${index} RequestStatus type:`, typeof req.RequestStatus);
-                    // Add a direct test for the problem
-                    if (req.RequestStatus && typeof req.RequestStatus.toLowerCase !== 'function') {
-                        console.error(`ERROR: RequestStatus is NOT a string in request #${index}:`, req.RequestStatus);
+            // ENHANCED PARSING: Deeply process the SharePoint complex objects
+            existingRequests = rawRequests.map(req => {
+                const processed = { ...req };
+                
+                // Process ALL fields that might be complex objects
+                Object.keys(req).forEach(key => {
+                    if (req[key] && typeof req[key] === 'object' && req[key].Value !== undefined) {
+                        console.log(`Converting complex object in field ${key}:`, req[key]);
+                        processed[key] = req[key].Value;
                     }
                 });
-            }
-            
-            // Force-convert any problematic RequestStatus fields to strings
-            existingRequests = existingRequests.map(req => {
-                if (req.RequestStatus !== undefined && req.RequestStatus !== null) {
-                    return {
-                        ...req,
-                        RequestStatus: String(req.RequestStatus)
-                    };
+                
+                // Double-check the critical fields
+                if (processed.RequestStatus && typeof processed.RequestStatus === 'object') {
+                    console.log("Force converting RequestStatus:", processed.RequestStatus);
+                    processed.RequestStatus = processed.RequestStatus.Value || String(processed.RequestStatus);
                 }
-                return req;
+                
+                if (processed.Priority && typeof processed.Priority === 'object') {
+                    console.log("Force converting Priority:", processed.Priority);
+                    processed.Priority = processed.Priority.Value || String(processed.Priority);
+                }
+                
+                if (processed.RequestType && typeof processed.RequestType === 'object') {
+                    console.log("Force converting RequestType:", processed.RequestType);
+                    processed.RequestType = processed.RequestType.Value || String(processed.RequestType);
+                }
+                
+                return processed;
             });
+            
+            console.log("Processed requests:", existingRequests);
+            
+            if (existingRequests && existingRequests.length > 0) {
+                showRequestsPanel(existingRequests);
+            } else {
+                loadEmailData();
+                showPanel('request-form');
+            }
         } catch (parseError) {
             console.error("Failed to parse or process response:", parseError);
-        }
-        
-        if (existingRequests && existingRequests.length > 0) {
-            showRequestsPanel(existingRequests);
-        } else {
-            loadEmailData();
-            showPanel('request-form');
+            throw parseError;
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
@@ -282,88 +283,79 @@ function showRequestsPanel(requests) {
     if (processedRequests.length > 0) {
         processedRequests.forEach((req, index) => {
             try {
-                // Debug each iteration
-                console.log(`Processing request #${index}:`, req);
-                
                 // Create the element
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'request-list-item';
                 
-                // FIX: Handle both ID and Id (case-insensitive)
+                // Get the request ID
                 const reqId = (req && (req.ID !== undefined || req.Id !== undefined)) ? 
                     (req.ID !== undefined ? req.ID : req.Id) : `unknown-${index}`;
-                
-                console.log(`Request #${index} ID value:`, reqId);
                     
                 const uniqueId = `req-${reqId}-${Math.random().toString(36).substring(2, 8)}`;
                 
-                // ULTRA defensive status handling
-                let statusText = "Unknown";
-                let statusClass = "unknown";
-                
-                // Check if RequestStatus exists at all
-                if (req && 'RequestStatus' in req) {
-                    const status = req.RequestStatus;
-                    
-                    // FIX: Handle RequestStatus as string (already processed above)
-                    if (status === null || status === undefined) {
-                        statusText = "Unspecified";
+                // Process Priority field (double check to ensure it's a simple value)
+                let priorityText = 'Medium'; // Default value
+                if (req.Priority) {
+                    if (typeof req.Priority === 'string') {
+                        priorityText = req.Priority;
+                    } else if (typeof req.Priority === 'object' && req.Priority.Value) {
+                        priorityText = req.Priority.Value;
                     } else {
-                        // Convert to string safely
-                        statusText = String(status);
-                    }
-                    
-                    // Get CSS class name safely
-                    try {
-                        statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
-                    } catch (e) {
-                        console.error("Error converting status to class:", e);
-                        statusClass = "unknown";
+                        priorityText = 'Medium'; // Default if it's still an object somehow
                     }
                 }
                 
-                // FIX: Handle RequestType the same way as RequestStatus
-                let requestTypeText = "Unknown Type";
-                if (req && req.RequestType) {
-                    // Already processed above, should be a string now
-                    requestTypeText = String(req.RequestType);
+                // Process Status field (double check)
+                let statusText = "New";
+                let statusClass = "new";
+                if (req.RequestStatus) {
+                    if (typeof req.RequestStatus === 'string') {
+                        statusText = req.RequestStatus;
+                    } else if (typeof req.RequestStatus === 'object' && req.RequestStatus.Value) {
+                        statusText = req.RequestStatus.Value;
+                    } else {
+                        statusText = "New"; // Default
+                    }
+                    statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
                 }
                 
-                // Safely get other properties
+                // Process RequestType field (double check)
+                let requestTypeText = "Unknown";
+                if (req.RequestType) {
+                    if (typeof req.RequestType === 'string') {
+                        requestTypeText = req.RequestType;
+                    } else if (typeof req.RequestType === 'object' && req.RequestType.Value) {
+                        requestTypeText = req.RequestType.Value;
+                    } else {
+                        requestTypeText = "Unknown"; 
+                    }
+                }
+                
+                // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
-                // FIX: Priority display - already processed above
-                let priorityText = 'Medium'; // Default value
-                if (req && req.Priority) {
-                    priorityText = String(req.Priority);
-                }
-                
-                // Build the HTML with safe values
+                // Build the HTML with safe values and explicit text styling
                 itemDiv.innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
-                    <label for="${uniqueId}" class="request-list-item-details">
-                        <strong>${requestTypeText}</strong>
+                    <label for="${uniqueId}" class="request-list-item-details" style="color: #000000;">
+                        <strong style="color: #000000;">${requestTypeText}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
-                        <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
+                        <small style="color: #000000;">Created: ${trackedDate} | Priority: ${priorityText}</small>
                     </label>
                 `;
                 container.appendChild(itemDiv);
-                
             } catch (err) {
                 console.error(`Critical error processing request #${index}:`, err, req);
-                // Add a simple placeholder for this item
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'request-list-item error';
                 errorDiv.textContent = `Error displaying request #${index}: ${err.message}`;
                 container.appendChild(errorDiv);
             }
         });
-
-        // Pass false to prevent clearing the success message
+        
         showPanel('request-list-panel', false);
     } else {
-        // This case handles when the list is empty
         loadEmailData();
         showPanel('request-form');
     }

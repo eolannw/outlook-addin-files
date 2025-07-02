@@ -123,40 +123,59 @@ function loadEmailData() {
 async function checkExistingRequests() {
     showLoading(true, "Checking for existing requests...");
     const conversationId = currentItem.conversationId;
+    
+    // Log the conversation ID we're using
+    console.log("Looking up requests for conversation ID:", conversationId);
 
     if (!conversationId) {
         showError("Could not get conversation ID. Showing new request form.");
-        // FIX: Always load email data before showing the new request form.
         loadEmailData();
         showPanel('request-form');
         return;
     }
 
     try {
+        // Log the URL we're using
+        console.log("Calling Power Automate with URL:", CONFIG.REQUEST_LOOKUP_URL);
+        
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ conversationId: conversationId })
         });
 
-        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        console.log("Response status:", response.status, response.statusText);
 
-        existingRequests = await response.json();
+        if (!response.ok) {
+            // Try to get more information about the error
+            let errorText = "";
+            try {
+                errorText = await response.text();
+            } catch (e) {
+                errorText = "Could not read error details";
+            }
+            console.error("Error response body:", errorText);
+            throw new Error(`HTTP error ${response.status}: ${errorText}`);
+        }
+
+        // Parse response more carefully
+        const responseText = await response.text();
+        console.log("Raw response:", responseText);
+        
+        existingRequests = responseText ? JSON.parse(responseText) : [];
+        console.log("Parsed requests:", existingRequests);
 
         if (existingRequests && existingRequests.length > 0) {
             showRequestsPanel(existingRequests);
         } else {
-            // FIX: This is the primary path for showing a new request.
-            // Load the email data here to ensure the form is populated.
             loadEmailData();
-            showPanel('request-form'); // No requests found, show new form
+            showPanel('request-form');
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
         showError("Could not check for existing requests. Please try again.");
-        // FIX: Load data before showing the form as a fallback.
         loadEmailData();
-        showPanel('request-form'); // Fallback to new form on error
+        showPanel('request-form');
     } finally {
         showLoading(false);
     }
@@ -182,37 +201,45 @@ function showRequestsPanel(requests) {
     const container = document.getElementById('request-list-container');
     container.innerHTML = ''; // Clear previous list
     
-    // Add debug logging to see the actual data structure
-    console.log("Requests data received:", JSON.stringify(requests, null, 2));
-
+    // Add more extensive debug logging
+    console.log("Requests data received:", requests);
+    
     if (requests && requests.length > 0) {
-        requests.forEach(req => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'request-list-item';
-            // FIX: Ensure IDs are unique to prevent radio button conflicts.
-            const uniqueId = `req-${req.Id}-${Math.random()}`;
-            
-            // FIX: Add defensive checks for all properties to handle possible null values
-            const requestStatus = req.RequestStatus || "Unknown";
-            const statusClass = typeof requestStatus === 'string' ? 
-                requestStatus.toLowerCase().replace(/\s+/g, '-') : 'unknown';
+        requests.forEach((req) => {
+            try {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'request-list-item';
+                const uniqueId = `req-${req.Id || 'unknown'}-${Math.random()}`;
                 
-            itemDiv.innerHTML = `
-                <input type="radio" name="requestSelection" value="${req.Id || ''}" id="${uniqueId}">
-                <label for="${uniqueId}" class="request-list-item-details">
-                    <strong>${req.RequestType || 'Unknown Type'}</strong>
-                    <span class="status-badge status-${statusClass}">${requestStatus}</span>
-                    <br>
-                    <small>Created: ${formatDate(req.TrackedDate || '')} | Priority: ${req.Priority || 'N/A'}</small>
-                </label>
-            `;
-            container.appendChild(itemDiv);
+                // Convert RequestStatus to string explicitly before using string methods
+                let statusText = "Unknown";
+                let statusClass = "unknown";
+                
+                if (req.RequestStatus !== undefined && req.RequestStatus !== null) {
+                    statusText = String(req.RequestStatus);
+                    statusClass = String(req.RequestStatus).toLowerCase().replace(/\s+/g, '-');
+                }
+                
+                itemDiv.innerHTML = `
+                    <input type="radio" name="requestSelection" value="${req.Id || ''}" id="${uniqueId}">
+                    <label for="${uniqueId}" class="request-list-item-details">
+                        <strong>${req.RequestType || 'Unknown Type'}</strong>
+                        <span class="status-badge status-${statusClass}">${statusText}</span>
+                        <br>
+                        <small>Created: ${formatDate(req.TrackedDate || '')} | Priority: ${req.Priority || 'N/A'}</small>
+                    </label>
+                `;
+                container.appendChild(itemDiv);
+            } catch (err) {
+                console.error("Error processing request item:", err, req);
+                // Continue with the next item instead of failing completely
+            }
         });
 
-        // FIX: Pass false to prevent clearing the success message toast.
+        // Pass false to prevent clearing the success message
         showPanel('request-list-panel', false);
     } else {
-        // This case handles when the list is empty.
+        // This case handles when the list is empty
         loadEmailData();
         showPanel('request-form');
     }

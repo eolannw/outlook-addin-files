@@ -114,6 +114,7 @@ function populateDropdowns() {
         "Compliance Request",
         "Contract Extension",
         "Contract Termination",
+        "Oracle Modification",
         "Deal Reporting",
         "Other"
     ];

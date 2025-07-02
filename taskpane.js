@@ -573,16 +573,21 @@ async function submitUpdate() {
     showLoading(true, "Submitting update...");
 
     try {
+        const notesValue = document.getElementById('update-notes').value;
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
-            notes: document.getElementById('update-notes').value || "",
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
         };
 
         // Only include the reportUrl if it has a value.
         if (reportUrl) {
             payload.reportUrl = reportUrl;
+        }
+        
+        // Only include notes if they have a value.
+        if (notesValue) {
+            payload.notes = notesValue;
         }
 
         console.log("Update payload:", payload);

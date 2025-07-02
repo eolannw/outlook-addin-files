@@ -573,7 +573,7 @@ async function submitUpdate() {
     showLoading(true, "Submitting update...");
 
     try {
-        const notesValue = document.getElementById('update-notes').value;
+        const notesValue = document.getElementById('update-notes').value.trim();
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
@@ -585,9 +585,16 @@ async function submitUpdate() {
             payload.reportUrl = reportUrl;
         }
         
-        // Only include notes if they have a value.
+        // If new notes are added, prepend them to the existing notes to create a log.
         if (notesValue) {
-            payload.notes = notesValue;
+            const timestamp = new Date().toLocaleString();
+            const user = currentUser ? currentUser.displayName : "Unknown User";
+            const existingNotes = selectedRequest.Notes || "";
+            
+            const newNoteEntry = `--- Note added by ${user} on ${timestamp} ---\n${notesValue}`;
+            
+            // Combine the new entry with previous notes.
+            payload.notes = newNoteEntry + (existingNotes ? `\n\n${existingNotes}` : "");
         }
 
         console.log("Update payload:", payload);

@@ -183,7 +183,8 @@ async function submitNewRequest() {
             subject: document.getElementById("subject").value,
             senderName: document.getElementById("senderName").value,
             senderEmail: document.getElementById("senderEmail").value,
-            sentDate: document.getElementById("sentDate").value,
+            // FIX: Send the original ISO date string, not the formatted one.
+            sentDate: currentItem.dateTimeCreated ? currentItem.dateTimeCreated.toISOString() : null,
             requestType: requestType,
             reportsRequested: parseInt(document.getElementById("reportsRequested").value, 10) || null,
             requestStatus: status,
@@ -207,7 +208,8 @@ async function submitNewRequest() {
 
     } catch (error) {
         showError(error.message);
-        showLoading(false);
+        // FIX: Show the form again on error so the user can retry.
+        showPanel('request-form');
     }
 }
 

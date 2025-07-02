@@ -217,7 +217,7 @@ async function submitNewRequest() {
 
     } catch (error) {
         showError(error.message);
-        // FIX: Show the form again on error so the user can retry.
+        // FIX: The loading screen is hidden by showError, so we just need to ensure the correct panel is visible.
         showPanel('request-form');
     }
 }
@@ -326,7 +326,9 @@ function showError(message) {
     const errorElement = document.getElementById("error-message");
     errorElement.textContent = message;
     errorElement.style.display = "block";
-    showLoading(false);
+    showLoading(false); // This will hide the loading message
+    // Ensure the error is visible by not hiding the panel it's in.
+    // The calling function should now handle which panel to show.
 }
 
 function showSuccess(message) {

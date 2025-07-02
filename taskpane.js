@@ -325,6 +325,10 @@ function showRequestsPanel(requests) {
                         priorityText = req.Priority;
                     } else if (typeof req.Priority === 'object' && req.Priority.Value) {
                         priorityText = req.Priority.Value;
+                    } else if (typeof req.Priority === 'object') {
+                        // This prevents [object Object] from showing in the UI
+                        console.log("Complex priority object:", req.Priority);
+                        priorityText = req.Priority.Id !== undefined ? `Priority ${req.Priority.Id}` : 'Medium';
                     } else {
                         console.log("Priority is complex:", req.Priority);
                         priorityText = 'Medium'; // Default if we can't extract
@@ -338,7 +342,7 @@ function showRequestsPanel(requests) {
                         <strong>${requestTypeText}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
-                        <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
+                        <small>Created: ${trackedDate} | Priority: ${String(priorityText)}</small>
                     </label>
                 `;
                 container.appendChild(itemDiv);

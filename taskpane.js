@@ -43,7 +43,11 @@ function setupGlobalEventHandlers() {
 
     // Request List Panel
     document.getElementById("update-selected-btn").onclick = () => showUpdateForm();
-    document.getElementById("create-new-btn").onclick = () => showPanel('request-form');
+    // Modified to load email data when creating a new request from the list
+    document.getElementById("create-new-btn").onclick = () => {
+        loadEmailData();
+        showPanel('request-form');
+    };
     document.getElementById("refresh-list-btn").onclick = checkExistingRequests;
 
     // Update Form Panel
@@ -270,6 +274,12 @@ function showPanel(panelId, clear=true) {
     const panel = document.getElementById(panelId);
     if (panel) {
         panel.style.display = 'block';
+        
+        // Call toggleReportsRequestedField when showing the request form
+        // to ensure the Reports Requested field is properly initialized
+        if (panelId === 'request-form') {
+            toggleReportsRequestedField();
+        }
     }
     // FIX: Only clear messages if the 'clear' flag is true.
     // This prevents the success toast from being hidden prematurely.
@@ -647,9 +657,10 @@ function getBodyAsText() {
 function resetForm() {
     document.getElementById("request-form").reset();
     document.getElementById("priority").value = "Medium";
-    toggleReportsRequestedField();
     // FIX: Reload email data to ensure form is correctly populated.
     loadEmailData();
+    // Ensure the Reports Requested field is properly set after reset
+    toggleReportsRequestedField();
     clearMessages(); 
 }
 

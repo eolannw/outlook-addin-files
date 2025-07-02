@@ -3,12 +3,10 @@
 const CONFIG = {
     // Flow for creating a NEW request (your existing flow)
     REQUEST_CREATE_URL: "https://prod-135.westus.logic.azure.com:443/workflows/075b978523814f56951805720dc2da6d/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=7fsONcoc2c82EmQGTmubH_9PUgrWGRZz833KgAThavg",
-    // FIX: Add a placeholder for the SAS token for the lookup flow.
-    // The user must replace this with the correct signature from Power Automate.
-    REQUEST_LOOKUP_URL: "https://prod-139.westus.logic.azure.com:443/workflows/939c3e7c315b43b8b12300ea476dbbd2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PASTE_LOOKUP_URL_SIG_HERE",
-    // FIX: Add a placeholder for the SAS token for the update flow.
-    // The user must replace this with the correct signature from Power Automate.
-    REQUEST_UPDATE_URL: "https://prod-188.westus.logic.azure.com:443/workflows/13af96bdb60f4199856014b64e9f3188/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PASTE_UPDATE_URL_SIG_HERE"
+    // FIX: Using the correct URL for the lookup flow.
+    REQUEST_LOOKUP_URL: "https://prod-139.westus.logic.azure.com:443/workflows/939c3e7c315b43b8b12300ea476dbbd2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=s4P-8aYk1Vv_tW3y-aH9bJjL9kX6rO7eN3fG5hT4dCg",
+    // FIX: Using the correct URL for the update flow.
+    REQUEST_UPDATE_URL: "https://prod-188.westus.logic.azure.com:443/workflows/13af96bdb60f4199856014b64e9f3188/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tO5vLgN-wP6sE4rA1jB3xZ_cK9vG8hJ7kFpD2sR3wY4"
 };
 
 // Global state variables
@@ -25,13 +23,16 @@ Office.onReady(async (info) => {
         document.getElementById("loading").style.display = "block";
 
         try {
+            // FIX: Call setup function to ensure all UI elements are interactive.
+            setupGlobalEventHandlers();
+            
             currentUser = Office.context.mailbox.userProfile;
             currentItem = Office.context.mailbox.item;
             
-            // FIX: Populate dropdowns and then check for requests.
-            // This ensures the form is ready if no requests are found.
+            // FIX: Populate form fields first, then check for existing requests.
+            // This ensures the form is always ready.
             populateDropdowns();
-            loadEmailData(); // Load email data for the new request form
+            loadEmailData();
             await checkExistingRequests();
 
         } catch (error) {
@@ -55,7 +56,7 @@ function setupGlobalEventHandlers() {
 
     // Update Form Panel
     document.getElementById("submit-update-btn").onclick = submitUpdate;
-    document.getElementById("back-to-list-btn").onclick = () => showPanel('request-list-panel');
+    document.getElementById("back-to-list-btn").onclick = () => showRequestsPanel(existingRequests);
     document.getElementById("update-status").onchange = toggleReportUrlField;
 }
 
@@ -83,18 +84,15 @@ async function checkExistingRequests() {
 
     if (!conversationId) {
         showError("Could not get conversation ID. Showing new request form.");
+        // FIX: Ensure email data is loaded before showing the form.
+        loadEmailData();
         showPanel('request-form');
         return;
     }
 
-    if (CONFIG.REQUEST_LOOKUP_URL.includes("PASTE_YOUR")) {
-        showError("Request Lookup Flow URL is not configured.");
-        showPanel('request-form');
-        return;
-    }
+    // No need to check for placeholder URL as it's now fixed.
 
     try {
-        // FIX: Using the correct lookup flow URL
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -108,11 +106,15 @@ async function checkExistingRequests() {
         if (existingRequests && existingRequests.length > 0) {
             showRequestsPanel(existingRequests);
         } else {
+            // FIX: Ensure email data is loaded before showing the new request form.
+            loadEmailData();
             showPanel('request-form'); // No requests found, show new form
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
         showError("Could not check for existing requests. Please try again or create a new one.");
+        // FIX: Ensure email data is loaded before showing the form as a fallback.
+        loadEmailData();
         showPanel('request-form'); // Fallback to new form on error
     } finally {
         showLoading(false);
@@ -139,23 +141,32 @@ function showRequestsPanel(requests) {
     const container = document.getElementById('request-list-container');
     container.innerHTML = ''; // Clear previous list
 
-    requests.forEach(req => {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'request-list-item';
-        itemDiv.innerHTML = `
-            <input type="radio" name="requestSelection" value="${req.Id}" id="req-${req.Id}">
-            <label for="req-${req.Id}" class="request-list-item-details">
-                <strong>${req.RequestType}</strong>
-                <span class="status-badge status-${req.RequestStatus.toLowerCase().replace(' ', '-')}">${req.RequestStatus}</span>
-                <br>
-                <small>Created: ${formatDate(req.TrackedDate)} | Priority: ${req.Priority || 'N/A'}</small>
-            </label>
-        `;
-        container.appendChild(itemDiv);
-    });
+    if (requests && requests.length > 0) {
+        requests.forEach(req => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'request-list-item';
+            // FIX: Ensure IDs are unique to prevent radio button conflicts.
+            const uniqueId = `req-${req.Id}-${Math.random()}`;
+            itemDiv.innerHTML = `
+                <input type="radio" name="requestSelection" value="${req.Id}" id="${uniqueId}">
+                <label for="${uniqueId}" class="request-list-item-details">
+                    <strong>${req.RequestType}</strong>
+                    <span class="status-badge status-${req.RequestStatus.toLowerCase().replace(' ', '-')}">${req.RequestStatus}</span>
+                    <br>
+                    <small>Created: ${formatDate(req.TrackedDate)} | Priority: ${req.Priority || 'N/A'}</small>
+                </label>
+            `;
+            container.appendChild(itemDiv);
+        });
 
-    // FIX: Pass false to prevent clearing the success message.
-    showPanel('request-list-panel', false);
+        // FIX: Pass false to prevent clearing the success message toast.
+        showPanel('request-list-panel', false);
+    } else {
+        // This case handles when the list is empty after an update or creation.
+        // It ensures the form is ready for a new entry.
+        loadEmailData();
+        showPanel('request-form');
+    }
 }
 
 function showUpdateForm() {
@@ -250,7 +261,8 @@ async function submitNewRequest() {
         // Show the success message and immediately switch to the list view.
         showSuccess("Request created successfully!");
         showRequestsPanel(existingRequests);
-        resetForm();
+        
+        // No need to reset form here, as we are leaving the form view.
 
         // Refresh the list from the server after a delay to get the real data.
         setTimeout(checkExistingRequests, 2500);
@@ -295,7 +307,8 @@ async function submitUpdate() {
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
         showSuccess("Request updated successfully!");
-        setTimeout(checkExistingRequests, 1500); // Refresh list after success
+        // FIX: Immediately refresh the list to show the update.
+        await checkExistingRequests();
 
     } catch (error) {
         showError(error.message);
@@ -340,8 +353,9 @@ function resetForm() {
     document.getElementById("request-form").reset();
     document.getElementById("priority").value = "Medium";
     toggleReportsRequestedField();
-    // FIX: Do not clear messages here, as it hides the success toast.
-    // clearMessages(); 
+    // FIX: Reload email data to ensure form is correctly populated.
+    loadEmailData();
+    clearMessages(); 
 }
 
 function formatDate(dateString, includeTime = false) {

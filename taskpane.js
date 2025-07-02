@@ -95,9 +95,11 @@ function toggleReportsRequestedField() {
     if (requestType === "Compliance Request" || requestType === "Deal Reporting") {
         reportsGroup.style.display = "block";
         reportsInput.value = 1;
+        reportsInput.disabled = false;
     } else {
         reportsGroup.style.display = "none";
         reportsInput.value = ""; // Clear value when hidden
+        reportsInput.disabled = true;
     }
 }
 

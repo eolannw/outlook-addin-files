@@ -254,8 +254,33 @@ function showRequestsPanel(requests) {
         requests = [requests]; // Wrap in array
     }
     
-    if (requests.length > 0) {
-        requests.forEach((req, index) => {
+    // Process the requests to ensure the SharePoint complex objects are properly handled
+    const processedRequests = requests.map(req => {
+        const processed = { ...req };
+        
+        // Fix RequestStatus object
+        if (req.RequestStatus && typeof req.RequestStatus === 'object' && req.RequestStatus.Value) {
+            processed.RequestStatus = req.RequestStatus.Value;
+        }
+        
+        // Fix Priority object
+        if (req.Priority && typeof req.Priority === 'object' && req.Priority.Value) {
+            processed.Priority = req.Priority.Value;
+        }
+        
+        // Fix RequestType object
+        if (req.RequestType && typeof req.RequestType === 'object' && req.RequestType.Value) {
+            processed.RequestType = req.RequestType.Value;
+        }
+        
+        return processed;
+    });
+    
+    // Replace the original requests with the processed ones
+    existingRequests = processedRequests;
+    
+    if (processedRequests.length > 0) {
+        processedRequests.forEach((req, index) => {
             try {
                 // Debug each iteration
                 console.log(`Processing request #${index}:`, req);
@@ -280,19 +305,11 @@ function showRequestsPanel(requests) {
                 if (req && 'RequestStatus' in req) {
                     const status = req.RequestStatus;
                     
-                    // FIX: Handle RequestStatus as object with Value property (from SharePoint)
+                    // FIX: Handle RequestStatus as string (already processed above)
                     if (status === null || status === undefined) {
                         statusText = "Unspecified";
-                    } else if (typeof status === 'string') {
-                        statusText = status;
-                    } else if (typeof status === 'object' && status.Value !== undefined) {
-                        console.log("RequestStatus is an object with Value:", status.Value);
-                        statusText = status.Value;
-                    } else if (typeof status === 'object') {
-                        console.log("RequestStatus is an object:", status);
-                        statusText = JSON.stringify(status);
                     } else {
-                        // Convert whatever it is to a string
+                        // Convert to string safely
                         statusText = String(status);
                     }
                     
@@ -308,31 +325,17 @@ function showRequestsPanel(requests) {
                 // FIX: Handle RequestType the same way as RequestStatus
                 let requestTypeText = "Unknown Type";
                 if (req && req.RequestType) {
-                    if (typeof req.RequestType === 'string') {
-                        requestTypeText = req.RequestType;
-                    } else if (typeof req.RequestType === 'object' && req.RequestType.Value !== undefined) {
-                        requestTypeText = req.RequestType.Value;
-                    }
+                    // Already processed above, should be a string now
+                    requestTypeText = String(req.RequestType);
                 }
                 
                 // Safely get other properties
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
-                // FIX: Priority display - extract the Value property if it's an object
-                let priorityText = 'N/A';
+                // FIX: Priority display - already processed above
+                let priorityText = 'Medium'; // Default value
                 if (req && req.Priority) {
-                    if (typeof req.Priority === 'string') {
-                        priorityText = req.Priority;
-                    } else if (typeof req.Priority === 'object' && req.Priority.Value) {
-                        priorityText = req.Priority.Value;
-                    } else if (typeof req.Priority === 'object') {
-                        // This prevents [object Object] from showing in the UI
-                        console.log("Complex priority object:", req.Priority);
-                        priorityText = req.Priority.Id !== undefined ? `Priority ${req.Priority.Id}` : 'Medium';
-                    } else {
-                        console.log("Priority is complex:", req.Priority);
-                        priorityText = 'Medium'; // Default if we can't extract
-                    }
+                    priorityText = String(req.Priority);
                 }
                 
                 // Build the HTML with safe values
@@ -342,7 +345,7 @@ function showRequestsPanel(requests) {
                         <strong>${requestTypeText}</strong>
                         <span class="status-badge status-${statusClass}">${statusText}</span>
                         <br>
-                        <small>Created: ${trackedDate} | Priority: ${String(priorityText)}</small>
+                        <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
                     </label>
                 `;
                 container.appendChild(itemDiv);

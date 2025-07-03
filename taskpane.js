@@ -83,9 +83,9 @@ function setupGlobalEventHandlers() {
 
     // Request List Panel
     document.getElementById(DOM.updateSelectedBtn).onclick = () => showUpdateForm();
-    // Modified to load email data when creating a new request from the list
+    // Modified to reset form when creating a new request from the list
     document.getElementById(DOM.createNewBtn).onclick = () => {
-        loadEmailData();
+        resetForm();
         showPanel(DOM.requestForm);
     };
     document.getElementById(DOM.refreshListBtn).onclick = checkExistingRequests;
@@ -272,7 +272,9 @@ async function checkExistingRequests() {
             
             // Add event handler for the new button
             document.getElementById("create-another-btn").onclick = () => {
-                loadEmailData();
+                // Reset the form first to ensure it's clean
+                resetForm();
+                // Then show the form panel
                 showPanel(DOM.requestForm);
             };
         } else {
@@ -307,8 +309,9 @@ function showPanel(panelId, clear=true) {
             toggleReportsRequestedField();
         }
     }
+    
     // Only clear messages if the 'clear' flag is true.
-    // This prevents the success toast from being hidden prematurely.
+    // This prevents messages from being hidden prematurely.
     if (clear) {
         clearMessages();
     }
@@ -512,11 +515,8 @@ async function submitNewRequest() {
         
         showError(errorMessage);
         
-        // Switch back to the list view to help the user find the existing request
-        setTimeout(() => {
-            showRequestsPanel(existingRequests);
-        }, 5000); // Show the error for 5 seconds before switching
-        
+        // Switch to the request list view immediately to help the user find the existing request
+        showRequestsPanel(existingRequests);
         return;
     }
 
@@ -547,19 +547,6 @@ async function submitNewRequest() {
         
         console.log("Submitting new request with payload:", payload);
         console.log("InternetMessageId value (capital I):", payload.InternetMessageId);
-        
-        // Debug: Log all properties of currentItem for troubleshooting
-        console.log("Current Item Properties available:");
-        for (const prop in currentItem) {
-            // Only log properties that are not functions
-            if (typeof currentItem[prop] !== 'function') {
-                try {
-                    console.log(`- ${prop}: ${JSON.stringify(currentItem[prop])}`);
-                } catch (e) {
-                    console.log(`- ${prop}: [Unable to stringify]`);
-                }
-            }
-        }
         
         // REFACTOR: Using fetch API directly for cleaner code and better error handling.
         const response = await fetch(CONFIG.REQUEST_CREATE_URL, {
@@ -597,8 +584,7 @@ async function submitNewRequest() {
             throw new Error(errorMessage);
         }
         
-        // FIX: Optimistically update the UI to avoid race conditions.
-        // Add the new request to our local array.
+        // Add the new request to our local array
         const newRequestData = {
             Id: "new-" + Date.now(), // Placeholder ID
             RequestType: payload.requestType,
@@ -608,25 +594,29 @@ async function submitNewRequest() {
         };
         existingRequests.push(newRequestData);
         
-        // Show the success message and immediately switch to the list view.
-        // Customize message if there are existing requests
+        // Show the success message with the requests list
         const successMsg = existingRequests.length > 1 
             ? "Request created successfully! You now have multiple requests for this email." 
             : "Request created successfully!";
         showSuccess(successMsg);
+        
+        // Clear the form so it's blank if the user creates another request
+        resetForm();
+        
+        // Show the requests panel with the newly created request
         showRequestsPanel(existingRequests);
         
-        // No need to reset form here, as we are leaving the form view.
-
-        // Refresh the list from the server after a delay to get the real data.
-        setTimeout(checkExistingRequests, 2500);
+        // Refresh the list from the server to get the real data with the actual ID
+        await checkExistingRequests();
 
     } catch (error) {
         console.error("Submit error details:", error);
-        // Display the specific error message to the user.
+        // Display the specific error message to the user
         showError(error.message);
-        // Keep the form visible so the user can try again without re-entering data.
-        showPanel(DOM.requestForm);
+        // Keep the form visible so the user can try again
+        showPanel(DOM.requestForm, false); // Don't clear the error message
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -703,14 +693,15 @@ async function submitUpdate() {
         }
 
         showSuccess("Request updated successfully!");
-        // Immediately refresh the list to show the update.
+        
+        // Immediately refresh the list to show the update
         await checkExistingRequests();
 
     } catch (error) {
         console.error("Update submission error:", error);
         showError(error.message);
-        // Show the update form again on error so the user can retry.
-        showPanel(DOM.updateFormPanel);
+        // Show the update form again on error so the user can retry
+        showPanel(DOM.updateFormPanel, false); // Don't clear the error message
     } finally {
         showLoading(false);
     }
@@ -752,13 +743,29 @@ function getBodyAsText() {
 }
 
 function resetForm() {
-    document.getElementById(DOM.requestForm).reset();
-    // The default value for priority is now set in the HTML markup.
-    // FIX: Reload email data to ensure form is correctly populated.
+    // Reset all form fields
+    const form = document.getElementById(DOM.requestForm);
+    form.reset();
+    
+    // Clear specific fields that might not be fully reset by the form reset method
+    document.getElementById(DOM.requestType).value = "";
+    document.getElementById(DOM.notes).value = "";
+    document.getElementById(DOM.dueDate).value = "";
+    
+    // Reset priority to default "Medium"
+    document.getElementById(DOM.priority).value = "Medium";
+    
+    // Reset status to default "New"
+    document.getElementById(DOM.status).value = "New";
+    
+    // Reload email metadata but not user inputs
     loadEmailData();
+    
     // Ensure the Reports Requested field is properly set after reset
     toggleReportsRequestedField();
-    clearMessages(); 
+    
+    // Clear any messages
+    clearMessages();
 }
 
 function formatDate(dateString, includeTime = false) {
@@ -775,8 +782,35 @@ function formatDate(dateString, includeTime = false) {
 function showLoading(show, message = "Loading...") {
     const loading = document.getElementById(DOM.loading);
     if (show) {
-        loading.textContent = message;
-        loading.style.display = 'block';
+        // Create a spinner + message for better visual feedback
+        loading.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                <div class="spinner" style="
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #FF6B00;
+                    border-radius: 50%;
+                    width: 30px;
+                    height: 30px;
+                    animation: spin 1s linear infinite;
+                    margin-bottom: 10px;
+                "></div>
+                <div style="font-weight: bold;">${message}</div>
+            </div>
+            <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+        loading.style.display = 'flex';
+        loading.style.alignItems = 'center';
+        loading.style.justifyContent = 'center';
+        loading.style.padding = '20px';
+        loading.style.backgroundColor = '#f8f8f8';
+        loading.style.borderRadius = '4px';
+        loading.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
     } else {
         loading.style.display = 'none';
@@ -793,31 +827,45 @@ function showError(message) {
     }
     errorElement.style.display = "block";
     errorElement.style.color = "white";
-    errorElement.style.padding = "10px";
+    errorElement.style.padding = "12px";
     errorElement.style.border = "1px solid #d32f2f";
     errorElement.style.borderRadius = "4px";
     errorElement.style.marginBottom = "15px";
     errorElement.style.backgroundColor = "#d32f2f";
+    errorElement.style.fontWeight = "bold";
+    errorElement.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
     showLoading(false);
     
     // Log the error to console for debugging
     console.error("ERROR SHOWN TO USER:", message);
     
-    // Auto-dismiss error after 6 seconds
-    setTimeout(clearMessages, 6000);
+    // Auto-dismiss error after 8 seconds for errors that aren't critical
+    if (!message.includes("already exists for this email")) {
+        setTimeout(clearMessages, 8000);
+    }
 }
 
 function showSuccess(message) {
     const successElement = document.getElementById(DOM.successMessage);
-    successElement.textContent = message;
+    
+    // Support HTML content in success messages
+    if (message.includes('<p>') || message.includes('<div>')) {
+        successElement.innerHTML = message; // Use innerHTML for HTML content
+    } else {
+        successElement.textContent = message; // Use textContent for plain text (safer)
+    }
+    
     successElement.style.display = "block";
     successElement.style.color = "white";
     successElement.style.backgroundColor = "#FF6B00"; // Stryker orange
-    successElement.style.padding = "10px";
+    successElement.style.padding = "12px";
     successElement.style.border = "1px solid #FF6B00";
     successElement.style.borderRadius = "4px";
     successElement.style.marginBottom = "15px";
+    successElement.style.fontWeight = "bold";
+    successElement.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
     
+    // Auto-dismiss success message after 6 seconds
     setTimeout(clearMessages, 6000);
 }
 

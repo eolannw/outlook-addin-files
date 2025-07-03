@@ -619,6 +619,12 @@ async function submitNewRequest() {
     try {
         const emailBody = await getBodyAsText();
         
+        // Parse priority if it's a numeric string to ensure it's sent as an integer
+        let priorityValue = document.getElementById(DOM.priority).value;
+        if (!isNaN(priorityValue) && priorityValue !== "") {
+            priorityValue = parseInt(priorityValue, 10);
+        }
+        
         const payload = {
             subject: document.getElementById(DOM.subject).value,
             senderName: document.getElementById(DOM.senderName).value,
@@ -628,7 +634,7 @@ async function submitNewRequest() {
             reportsRequested: parseInt(document.getElementById(DOM.reportsRequested).value, 10) || null,
             requestStatus: status,
             notes: document.getElementById(DOM.notes).value || "",
-            priority: document.getElementById(DOM.priority).value,
+            priority: priorityValue,
             dueDate: document.getElementById(DOM.dueDate).value || null,
             trackedDate: new Date().toISOString(),
             assignedTo: currentUser ? currentUser.emailAddress : "Unknown User",
@@ -656,18 +662,28 @@ async function submitNewRequest() {
             let errorMessage = `Submission failed. Status: ${response.status}.`;
             try {
                 const errorBody = await response.text();
-                console.error("Power Automate Error Body:", errorBody);
-                
-                // Try to parse the error to get more details
-                try {
-                    const parsedError = JSON.parse(errorBody);
-                    if (parsedError.error && parsedError.error.message) {
-                        errorMessage += ` Error: ${parsedError.error.message}`;
-                    } else {
-                        errorMessage += ` Details: ${errorBody}`;
-                    }
-                } catch (parseError) {
-                    // If not JSON, just use the raw response
+                console.error("Power Automate Error Body:", errorBody);                    // Try to parse the error to get more details
+                    try {
+                        const parsedError = JSON.parse(errorBody);
+                        if (parsedError.error && parsedError.error.message) {
+                            errorMessage += ` Error: ${parsedError.error.message}`;
+                            
+                            // Check for type mismatch errors (specifically Integer vs String issues)
+                            if (parsedError.error.message.includes("Expected Integer but got String")) {
+                                // Extract the field name if possible
+                                const fieldMatch = parsedError.error.message.match(/Expected Integer but got String for '([^']+)'/);
+                                const fieldName = fieldMatch ? fieldMatch[1].replace('body/', '') : 'a field';
+                                
+                                console.error(`Type mismatch detected in field: ${fieldName}`);
+                                console.log("Original payload:", payload);
+                                
+                                errorMessage = `Submission failed: Type mismatch error in ${fieldName}. The system expected a number but received text.`;
+                            }
+                        } else {
+                            errorMessage += ` Details: ${errorBody}`;
+                        }
+                    } catch (parseError) {
+                        // If not JSON, just use the raw response
                     errorMessage += ` Details: ${errorBody}`;
                 }
             } catch (e) {
@@ -797,6 +813,9 @@ async function submitUpdate() {
         showError("Invalid request ID. Cannot update this request.");
         return;
     }
+    
+    // Convert selectedId to an actual number to ensure it's not sent as a string
+    const numericId = Number(selectedId);
 
     // Verify we have access to the InternetMessageId before proceeding
     let hasInternetMessageId = false;
@@ -842,11 +861,18 @@ async function submitUpdate() {
             console.warn("No InternetMessageId found in request or current item!");
         }
         
+        // Parse priority if it's a numeric value to ensure it's sent as an integer
+        // This handles the case where priority might be "1", "2", "3" instead of 1, 2, 3
+        let priorityValue = priority;
+        if (!isNaN(priority) && priority !== "") {
+            priorityValue = parseInt(priority, 10);
+        }
+
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
-            // Add priority to payload
-            priority: priority,
+            // Add priority to payload as an integer if it's numeric
+            priority: priorityValue,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
             // Add the InternetMessageId - CRITICAL for Power Automate
             InternetMessageId: internetMessageId
@@ -897,6 +923,17 @@ async function submitUpdate() {
                     // Check specifically for missing InternetMessageId
                     if (errorJson.error.message.includes("missing required property 'body/InternetMessageId'")) {
                         detailedErrorMessage = "Update failed: The InternetMessageId is missing. Please refresh and try again.";
+                    }
+                    // Check for type mismatch errors (specifically Integer vs String issues)
+                    else if (errorJson.error.message.includes("Expected Integer but got String")) {
+                        // Extract the field name if possible
+                        const fieldMatch = errorJson.error.message.match(/Expected Integer but got String for '([^']+)'/);
+                        const fieldName = fieldMatch ? fieldMatch[1].replace('body/', '') : 'a field';
+                        
+                        console.error(`Type mismatch detected in field: ${fieldName}`);
+                        console.log("Original payload:", payload);
+                        
+                        detailedErrorMessage = `Update failed: Type mismatch error in ${fieldName}. The system expected a number but received text.`;
                     }
                 } else {
                     detailedErrorMessage += `: ${errorText}`;

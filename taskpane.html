@@ -249,12 +249,7 @@
         <div class="form-group">
             <label for="requestType">Request Type <span class="required">*</span></label>
             <select id="requestType" required>
-                <option value="">Select Request Type...</option>
-                <option value="Compliance Request">Compliance Request</option>
-                <option value="Termination Request">Termination Request</option>
-                <option value="Extension Request">Extension Request</option>
-                <option value="Deal Reporting">Deal Reporting</option>
-                <option value="Other">Other</option>
+                <!-- Options are now populated dynamically by taskpane.js -->
             </select>
         </div>
 
@@ -266,12 +261,7 @@
         <div class="form-group">
             <label for="status">Request Status <span class="required">*</span></label>
             <select id="status" required>
-                <option value="">Select Status...</option>
-                <option value="New">New</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Pending Review">Pending Review</option>
-                <option value="Completed">Completed</option>
-                <option value="On Hold">On Hold</option>
+                <!-- Options are now populated dynamically by taskpane.js -->
             </select>
         </div>
 
@@ -323,12 +313,7 @@
         <div class="form-group">
             <label for="update-status">Request Status <span class="required">*</span></label>
             <select id="update-status" required>
-                <option value="">Select Status...</option>
-                <option value="New">New</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Pending Review">Pending Review</option>
-                <option value="Completed">Completed</option>
-                <option value="On Hold">On Hold</option>
+                <!-- Options are now populated dynamically by taskpane.js -->
             </select>
         </div>
         <div class="form-group">
@@ -357,8 +342,8 @@
     </form>
 
     <!-- Load the secret configuration file FIRST -->
-    <script src="config.js" onerror="console.error('config.js failed to load. Some features may not work.');"></script>
+    <script src="config.js" onerror="document.getElementById('error-message').style.display='block';document.getElementById('error-message').textContent='Critical error: config.js failed to load. Some features may not work.';console.error('config.js failed to load. Some features may not work.');"></script>
     <!-- Load the main application logic SECOND -->
-    <script src="taskpane.js"></script>
+    <script src="taskpane.js" defer></script>
 </body>
 </html>

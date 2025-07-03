@@ -41,26 +41,34 @@ const DOM = {
 };
 
 // Global state variables
+// Holds the current email item object from the Outlook context (Office.context.mailbox.item).
+// Holds the current Outlook user profile information (Office.context.mailbox.userProfile)
 let currentItem;
 let currentUser;
+// Holds the list of request objects associated with the current email, used for duplicate checks and UI updates.
 let existingRequests = [];
-
 // --- INITIALIZATION ---
+/**
+ * Office.onReady initialization sequence:
+ * 1. Hide all panels and show loading indicator.
+ * 2. Set up global event handlers for UI controls.
+ * 3. Retrieve current user and email item from Outlook context.
+ * 4. Populate dropdowns for request types and statuses.
+ * 5. Check for existing requests for the current email.
+ *    - If found, show the request list panel.
+ *    - If not found, show the new request form.
+ * 6. On error, show an error message and fallback to loading email data and showing the form.
+ */
 Office.onReady(async (info) => {
     if (info.host === Office.HostType.Outlook) {
-        // Hide all panels initially
-        document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-        document.getElementById(DOM.loading).style.display = "block";
-
         try {
+            // FIX: Previously, the form was shown before checking for existing requests, which could cause duplicate entries or confusion.
+            // Now, we check for existing requests first; if any are found, we show the request list, otherwise we show a new, populated form.
             setupGlobalEventHandlers();
             
             currentUser = Office.context.mailbox.userProfile;
             currentItem = Office.context.mailbox.item;
             
-            // FIX: The primary logic flow should be to check for requests first.
-            // The result of that check will then determine whether to show the
-            // existing requests list or a new, populated form.
             populateDropdowns();
             // Await inside try to catch async errors
             await checkExistingRequests(true);
@@ -1131,18 +1139,57 @@ function getBodyAsText() {
 function resetForm() {
     // Reset all form fields
     const form = document.getElementById(DOM.requestForm);
-    form.reset();
+    if (form) form.reset();
     
     // Clear specific fields that might not be fully reset by the form reset method
-    document.getElementById(DOM.requestType).value = "";
-    document.getElementById(DOM.notes).value = "";
-    document.getElementById(DOM.dueDate).value = "";
+    const requestTypeElem = document.getElementById(DOM.requestType);
+    if (requestTypeElem) requestTypeElem.value = "";
+    const notesElem = document.getElementById(DOM.notes);
+    if (notesElem) notesElem.value = "";
+    const dueDateElem = document.getElementById(DOM.dueDate);
+    if (dueDateElem) dueDateElem.value = "";
     
-    // Reset priority to default "Medium"
-    document.getElementById(DOM.priority).value = "Medium";
+    // Reset priority to default "Medium" if it exists, otherwise use the first available option
+    const priorityDropdown = document.getElementById(DOM.priority);
+    let foundMedium = false;
+    if (priorityDropdown && priorityDropdown.options) {
+        for (let i = 0; i < priorityDropdown.options.length; i++) {
+            if (priorityDropdown.options[i].value === "Medium") {
+                priorityDropdown.value = "Medium";
+                foundMedium = true;
+                break;
+            }
+        }
+        if (!foundMedium && priorityDropdown.options.length > 0) {
+            priorityDropdown.value = priorityDropdown.options[0].value;
+        }
+    }
     
-    // Reset status to default "New"
-    document.getElementById(DOM.status).value = "New";
+    // Reset status to default "New" only if the option exists
+    const statusElem = document.getElementById(DOM.status);
+    if (statusElem) {
+        const hasNewOption = Array.from(statusElem.options).some(opt => opt.value === "New");
+        if (hasNewOption) statusElem.value = "New";
+        else statusElem.value = ""; // fallback to blank if "New" is not present
+    }
+    const statusDropdown = document.getElementById(DOM.status);
+    let foundNew = false;
+    if (statusDropdown && statusDropdown.options) {
+        for (let i = 0; i < statusDropdown.options.length; i++) {
+            if (statusDropdown.options[i].value === "New") {
+                statusDropdown.value = "New";
+                foundNew = true;
+                break;
+            }
+        }
+        if (!foundNew && statusDropdown.options.length > 0) {
+            statusDropdown.value = statusDropdown.options[0].value;
+        }
+        // No need to get the element again, we already have it in statusDropdown
+        statusDropdown.value = "New";
+    }
+    // No need to get the element again, we already have it in statusDropdown
+    if (statusDropdown) statusDropdown.value = "New";
     
     // Reload email metadata but not user inputs
     loadEmailData();
@@ -1153,7 +1200,6 @@ function resetForm() {
     // Clear any messages
     clearMessages();
 }
-
 function formatDate(dateString, includeTime = false) {
     if (!dateString) return "";
     try {

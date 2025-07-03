@@ -227,7 +227,8 @@ async function checkExistingRequests(forceSwitchPanel = true) {
 
     try {
         // --- Step 1: Primary lookup by Internet Message ID ---
-        let lookupPayload = { InternetMessageId: internetMessageId }; // Use capital 'I' to match schema
+        // CRITICAL FIX: Use capital 'I' for InternetMessageId and keep as string to match schema
+        let lookupPayload = { InternetMessageId: String(internetMessageId || "") };
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -631,7 +632,7 @@ async function submitNewRequest() {
             assignedTo: currentUser ? currentUser.emailAddress : "Unknown User",
             trackedBy: currentUser ? currentUser.emailAddress : "Unknown User",
             conversationId: currentItem.conversationId || "", // Keep for backward compatibility
-            InternetMessageId: currentItem.internetMessageId || "", // Capital 'I' as per schema
+            InternetMessageId: String(currentItem.internetMessageId || ""), // Capital 'I' and string type as per schema
             messageId: currentItem.internetMessageId || currentItem.itemId || "",
             emailBody: emailBody || ""
         };
@@ -734,7 +735,7 @@ async function submitNewRequest() {
         setTimeout(async () => {
             try {
                 // Get the updated requests without triggering UI changes
-                let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+                let lookupPayload = { InternetMessageId: String(currentItem.internetMessageId || "") };
                 const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -768,7 +769,7 @@ async function submitNewRequest() {
                 
                 if (stillHasPlaceholders) {
                     // Do another refresh if we still have placeholders
-                    let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+                    let lookupPayload = { InternetMessageId: String(currentItem.internetMessageId || "") };
                     const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -880,9 +881,9 @@ async function submitUpdate() {
             // Send priority directly as the string value (Low, Medium, High)
             priority: priority,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
-            // Keep the original InternetMessageId as a string - don't convert to integer
-            // This is critical so it can be found in future lookups
-            InternetMessageId: internetMessageId
+            // CRITICAL FIX: Use "InternetMessageId" with capital I to match the schema
+            // InternetMessageId is stored as text in SharePoint list, keep as string
+            InternetMessageId: String(internetMessageId || "")
         };
         
         // Add some debugging output
@@ -920,6 +921,18 @@ async function submitUpdate() {
         // Also log parsed JSON to verify types
         console.log("JSON parsed back:", JSON.parse(payloadJson));
 
+        // CRITICAL FIX: Validate that the payload has the correct InternetMessageId property
+        // and that it's being sent as a string as expected by SharePoint
+        const parsedPayload = JSON.parse(payloadJson);
+        if (!parsedPayload.InternetMessageId && parsedPayload.InternetMessageId !== "") {
+            console.error("ERROR: InternetMessageId is missing from the payload!");
+        } else if (typeof parsedPayload.InternetMessageId !== 'string') {
+            console.error("ERROR: InternetMessageId should be a string but is:", typeof parsedPayload.InternetMessageId);
+            // Force it to be a string
+            parsedPayload.InternetMessageId = String(parsedPayload.InternetMessageId || "");
+            payloadJson = JSON.stringify(parsedPayload);
+        }
+        
         // Using the correct update flow URL
         const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { 
             method: 'POST', 
@@ -978,8 +991,11 @@ async function submitUpdate() {
         // Refresh the list to show the update, but stay on the request list view
         try {
             // Get the updated requests without triggering UI changes
-            let lookupPayload = { InternetMessageId: internetMessageId };
-            console.log("Looking up requests with InternetMessageId after update:", internetMessageId);
+            // CRITICAL FIX: Use correct property name and string type for InternetMessageId in payload
+            let lookupPayload = { 
+                InternetMessageId: String(internetMessageId || "")  // Use capital 'I' and string type to match schema
+            };
+            console.log("Looking up requests with InternetMessageId after update:", String(internetMessageId || ""));
             
             const refreshResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                 method: 'POST',
@@ -993,24 +1009,37 @@ async function submitUpdate() {
                     console.log("Found updated requests:", updatedRequests.length);
                     // Update our local array and refresh the list view
                     existingRequests = updatedRequests;
+                    console.log("Showing requests panel with updated data");
                     showRequestsPanel(existingRequests, true);
+                    
+                    // CRITICAL FIX: Ensure the panel is visible
+                    document.getElementById(DOM.requestListPanel).style.display = 'block';
                 } else {
                     console.warn("No requests found after update. Showing existing list.");
                     // Still show the requests panel even if no requests found
                     showRequestsPanel(existingRequests, true);
+                    
+                    // CRITICAL FIX: Ensure the panel is visible
+                    document.getElementById(DOM.requestListPanel).style.display = 'block';
                 }
             } else {
                 console.warn("Error response when refreshing requests:", refreshResponse.status);
                 // Still show the requests panel even if refresh fails
                 showRequestsPanel(existingRequests, true);
+                
+                // CRITICAL FIX: Ensure the panel is visible
+                document.getElementById(DOM.requestListPanel).style.display = 'block';
             }
         } catch (refreshError) {
             console.error("Error refreshing request list after update:", refreshError);
             // Still show the requests panel even if refresh fails
             showRequestsPanel(existingRequests, true);
+            
+            // CRITICAL FIX: Ensure the panel is visible
+            document.getElementById(DOM.requestListPanel).style.display = 'block';
         }
         
-        // Force showing the request list panel in case the above code didn't work
+        // CRITICAL FIX: Force showing the request list panel in case the above code didn't work
         console.log("Ensuring request list panel is shown");
         showPanel(DOM.requestListPanel, false);
 

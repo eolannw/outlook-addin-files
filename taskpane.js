@@ -395,6 +395,40 @@ function showRequestsPanel(requests, showWithMessages = false) {
     existingRequests = processedRequests;
     
     if (processedRequests.length > 0) {
+        // Add a "Refresh List" info message if there are placeholder IDs
+        const hasPlaceholderIds = processedRequests.some(req => {
+            const reqId = req.ID !== undefined ? req.ID : req.Id;
+            return String(reqId).startsWith('new-');
+        });
+        
+        if (hasPlaceholderIds) {
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'request-list-item';
+            infoDiv.style.backgroundColor = '#fff3e0';
+            infoDiv.style.borderColor = '#ff9800';
+            infoDiv.style.padding = '12px';
+            infoDiv.style.marginBottom = '15px';
+            infoDiv.innerHTML = `
+                <div><strong>⚠️ Some requests are still being processed</strong></div>
+                <div style="margin-top: 5px;">
+                    New requests take a moment to be fully registered. 
+                    Click "Refresh List" to update with actual IDs before updating.
+                </div>
+                <div style="margin-top: 8px;">
+                    <button id="special-refresh-btn" style="margin-top: 0;">Refresh List</button>
+                </div>
+            `;
+            container.appendChild(infoDiv);
+            
+            // Add event handler for the special refresh button
+            setTimeout(() => {
+                const refreshBtn = document.getElementById("special-refresh-btn");
+                if (refreshBtn) {
+                    refreshBtn.onclick = () => checkExistingRequests(true);
+                }
+            }, 0);
+        }
+        
         processedRequests.forEach((req, index) => {
             try {
                 // Create the element
@@ -404,6 +438,14 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 // Get the request ID
                 const reqId = (req && (req.ID !== undefined || req.Id !== undefined)) ? 
                     (req.ID !== undefined ? req.ID : req.Id) : `unknown-${index}`;
+                
+                // Check if this is a placeholder ID
+                const isPlaceholder = String(reqId).startsWith('new-');
+                
+                if (isPlaceholder) {
+                    itemDiv.style.opacity = "0.7";
+                    itemDiv.style.border = "1px dashed #ccc";
+                }
                     
                 const uniqueId = `req-${reqId}-${Math.random().toString(36).substring(2, 8)}`;
                 
@@ -417,11 +459,12 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
                 // Build the HTML with safe values and new status badges
-                itemDiv.innerHTML = `
-                    <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}">
+                let innerHTML = `
+                    <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}" ${isPlaceholder ? 'disabled' : ''}>
                     <label for="${uniqueId}" class="request-list-item-details">
                         <div>
                             <strong>${requestTypeText}</strong>
+                            ${isPlaceholder ? ' <span style="color:#ff9800;font-style:italic">(Processing...)</span>' : ''}
                         </div>
                         <div>
                             <span class="status-badge status-${statusClass}">${statusText}</span>
@@ -429,8 +472,20 @@ function showRequestsPanel(requests, showWithMessages = false) {
                         <div>
                             <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
                         </div>
-                    </label>
                 `;
+                
+                if (isPlaceholder) {
+                    innerHTML += `
+                        <div style="margin-top:5px;">
+                            <small style="color:#ff9800;"><i>This request is still being processed and cannot be updated yet. 
+                            Please refresh the list in a moment.</i></small>
+                        </div>
+                    `;
+                }
+                
+                innerHTML += `</label>`;
+                itemDiv.innerHTML = innerHTML;
+                
                 container.appendChild(itemDiv);
             } catch (err) {
                 console.error(`Critical error processing request #${index}:`, err, req);
@@ -606,20 +661,26 @@ async function submitNewRequest() {
             throw new Error(errorMessage);
         }
         
+        // Create a timestamp-based ID that will make it unlikely to clash
+        // with other requests created in the same session
+        const placeholderId = `new-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        
         // Add the new request to our local array
         const newRequestData = {
-            Id: "new-" + Date.now(), // Placeholder ID
+            Id: placeholderId, // Placeholder ID with added randomness
             RequestType: payload.requestType,
             RequestStatus: payload.requestStatus,
             TrackedDate: payload.trackedDate,
-            Priority: payload.priority
+            Priority: payload.priority,
+            _isPlaceholder: true // Add a flag to easily identify placeholder records
         };
         existingRequests.push(newRequestData);
         
-        // Show the success message
-        const successMsg = existingRequests.length > 1 
-            ? "Request created successfully! You now have multiple requests for this email." 
-            : "Request created successfully!";
+        // Show the success message with enhanced instructions about placeholder IDs
+        const successMsg = `
+            <p>Request created successfully!</p>
+            <p style="font-size: 90%;">Your request is being processed. <b>You'll need to refresh the list</b> before you can update it.</p>
+        `;
         showSuccess(successMsg);
         
         // Clear the form so it's blank if the user creates another request
@@ -629,30 +690,65 @@ async function submitNewRequest() {
         // Pass true to keep the success message visible
         showRequestsPanel(existingRequests, true);
         
-        // Refresh the list from the server to get the real data with the actual ID
-        // but don't change the current view
-        try {
-            // Get the updated requests without triggering UI changes
-            let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
-            const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lookupPayload)
-            });
+        // Set up a timer to automatically refresh the list after a few seconds
+        // This helps get the real IDs without requiring user action
+        setTimeout(async () => {
+            try {
+                // Get the updated requests without triggering UI changes
+                let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+                const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lookupPayload)
+                });
 
-            if (response.ok) {
-                const updatedRequests = await response.json();
-                if (updatedRequests && updatedRequests.length > 0) {
-                    // Update our local array without changing the view
-                    existingRequests = updatedRequests;
-                    // Refresh the list view without changing panels or clearing success message
-                    showRequestsPanel(existingRequests, true);
+                if (response.ok) {
+                    const updatedRequests = await response.json();
+                    if (updatedRequests && updatedRequests.length > 0) {
+                        // Update our local array without changing the view
+                        existingRequests = updatedRequests;
+                        // Refresh the list view without clearing success message
+                        showRequestsPanel(existingRequests, true);
+                        console.log("Auto-refreshed requests list after creation");
+                    }
                 }
+            } catch (refreshError) {
+                console.error("Error in auto-refresh of request list:", refreshError);
+                // Don't show an error to the user, as the submission was successful
             }
-        } catch (refreshError) {
-            console.error("Error refreshing request list:", refreshError);
-            // Don't show an error to the user, as the submission was successful
-        }
+        }, 5000); // Wait 5 seconds before auto-refreshing
+
+        // Also schedule another refresh for those slower systems
+        setTimeout(async () => {
+            try {
+                // Check if we still have placeholder IDs
+                const stillHasPlaceholders = existingRequests.some(req => {
+                    const reqId = req.ID !== undefined ? req.ID : req.Id;
+                    return String(reqId).startsWith('new-');
+                });
+                
+                if (stillHasPlaceholders) {
+                    // Do another refresh if we still have placeholders
+                    let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+                    const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(lookupPayload)
+                    });
+
+                    if (response.ok) {
+                        const updatedRequests = await response.json();
+                        if (updatedRequests && updatedRequests.length > 0) {
+                            existingRequests = updatedRequests;
+                            showRequestsPanel(existingRequests, true);
+                            console.log("Second auto-refresh of requests list completed");
+                        }
+                    }
+                }
+            } catch (refreshError) {
+                console.error("Error in second auto-refresh:", refreshError);
+            }
+        }, 10000); // Try again after 10 seconds
 
     } catch (error) {
         console.error("Submit error details:", error);
@@ -672,6 +768,12 @@ async function submitUpdate() {
         return;
     }
     const selectedId = selectedRequest.ID || selectedRequest.Id;
+
+    // Check if this is a placeholder ID (starts with "new-")
+    if (selectedId && String(selectedId).startsWith("new-")) {
+        showError("This request was just created and is still being processed. Please wait a moment and refresh the list before updating.");
+        return;
+    }
 
     // Ensure selectedId is a valid number before proceeding
     if (!selectedId || isNaN(Number(selectedId))) {

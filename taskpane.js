@@ -239,10 +239,42 @@ async function checkExistingRequests() {
         const potentialRequests = await response.json();
 
         if (potentialRequests && potentialRequests.length > 0) {
-            // Success! Found a match with the Internet Message ID.
+            // Success! Found matches with the Internet Message ID.
             console.log("Found existing requests by Internet Message ID:", potentialRequests);
             existingRequests = potentialRequests;
+            
+            // Show the request list panel with a more helpful message
+            const container = document.getElementById(DOM.requestListContainer);
+            
+            // We'll show the panel first, then prepend our message afterwards
             showRequestsPanel(existingRequests);
+            
+            // Add a "Create New" button at the top for better visibility
+            const createAnotherDiv = document.createElement('div');
+            createAnotherDiv.className = 'request-list-item';
+            createAnotherDiv.style.backgroundColor = '#e8f5e9';
+            createAnotherDiv.style.borderColor = 'var(--stryker-orange)';
+            createAnotherDiv.style.padding = '12px';
+            createAnotherDiv.style.marginBottom = '15px';
+            createAnotherDiv.innerHTML = `
+                <div><strong>Found ${potentialRequests.length} existing request(s) for this email</strong></div>
+                <div style="margin-top: 8px;">
+                    <button id="create-another-btn" style="margin-top: 0;">Create Another Request</button>
+                </div>
+            `;
+            
+            // Insert at the top
+            if (container.firstChild) {
+                container.insertBefore(createAnotherDiv, container.firstChild);
+            } else {
+                container.appendChild(createAnotherDiv);
+            }
+            
+            // Add event handler for the new button
+            document.getElementById("create-another-btn").onclick = () => {
+                loadEmailData();
+                showPanel(DOM.requestForm);
+            };
         } else {
             // No match found by Internet Message ID. Show the new request form.
             console.log("No existing requests found for this Internet Message ID. Showing new request form.");
@@ -457,6 +489,36 @@ async function submitNewRequest() {
         showError("Request Type and Status are required.");
         return;
     }
+    
+    // Check for duplicate (InternetMessageId, RequestType) combination
+    const duplicateRequest = findDuplicateRequest(requestType);
+    if (duplicateRequest) {
+        // Format the date in a user-friendly way
+        let trackedDate = "Unknown date";
+        try {
+            if (duplicateRequest.TrackedDate) {
+                trackedDate = new Date(duplicateRequest.TrackedDate).toLocaleDateString();
+            }
+        } catch (e) {
+            console.error("Error formatting tracked date:", e);
+        }
+        
+        // Create a descriptive error message with guidance
+        const errorMessage = `
+            <p>A request of type "${requestType}" already exists for this email (created on ${trackedDate}).</p>
+            <p>You cannot create multiple requests of the same type for one email.</p>
+            <p>Please select the existing request from the list and use the Update button to modify it instead.</p>
+        `;
+        
+        showError(errorMessage);
+        
+        // Switch back to the list view to help the user find the existing request
+        setTimeout(() => {
+            showRequestsPanel(existingRequests);
+        }, 5000); // Show the error for 5 seconds before switching
+        
+        return;
+    }
 
     showLoading(true, "Submitting new request...");
 
@@ -547,7 +609,11 @@ async function submitNewRequest() {
         existingRequests.push(newRequestData);
         
         // Show the success message and immediately switch to the list view.
-        showSuccess("Request created successfully!");
+        // Customize message if there are existing requests
+        const successMsg = existingRequests.length > 1 
+            ? "Request created successfully! You now have multiple requests for this email." 
+            : "Request created successfully!";
+        showSuccess(successMsg);
         showRequestsPanel(existingRequests);
         
         // No need to reset form here, as we are leaving the form view.
@@ -719,7 +785,12 @@ function showLoading(show, message = "Loading...") {
 
 function showError(message) {
     const errorElement = document.getElementById(DOM.errorMessage);
-    errorElement.textContent = message;
+    // Support HTML content in error messages
+    if (message.includes('<p>') || message.includes('<div>')) {
+        errorElement.innerHTML = message; // Use innerHTML for HTML content
+    } else {
+        errorElement.textContent = message; // Use textContent for plain text (safer)
+    }
     errorElement.style.display = "block";
     errorElement.style.color = "white";
     errorElement.style.padding = "10px";
@@ -755,4 +826,39 @@ function clearMessages() {
     const successElem = document.getElementById(DOM.successMessage);
     if (errorElem) errorElem.style.display = "none";
     if (successElem) successElem.style.display = "none";
+}
+
+// Checks if a request with the same InternetMessageId and RequestType already exists
+function findDuplicateRequest(requestType) {
+    if (!existingRequests || !Array.isArray(existingRequests) || existingRequests.length === 0) {
+        return null; // No existing requests to check against
+    }
+    
+    console.log("Checking for duplicate requests with type:", requestType);
+    
+    // Normalize the request type for case-insensitive comparison
+    const normalizedType = requestType.trim().toLowerCase();
+    
+    // Find any request with the same RequestType
+    const duplicate = existingRequests.find(req => {
+        // Handle both string and object formats for RequestType
+        let existingType = req.RequestType;
+        if (existingType && typeof existingType === 'object' && existingType.Value) {
+            existingType = existingType.Value;
+        }
+        
+        // Normalize for case-insensitive comparison
+        const normalizedExistingType = existingType ? existingType.trim().toLowerCase() : '';
+        
+        console.log(`Comparing request type '${normalizedExistingType}' with '${normalizedType}'`);
+        return normalizedExistingType === normalizedType;
+    });
+    
+    if (duplicate) {
+        console.log("Found duplicate request:", duplicate);
+    } else {
+        console.log("No duplicate request found for type:", requestType);
+    }
+    
+    return duplicate; // Will be undefined if no duplicate is found
 }

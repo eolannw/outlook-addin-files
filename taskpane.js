@@ -75,17 +75,12 @@ function toggleReportUrlField() {
     const reportUrlGroup = document.getElementById('report-url-group');
     const reportUrlInput = document.getElementById('report-url');
 
-    // Show the Report Link field only when the status is 'Completed'.
-    if (status === 'Completed') {
+    // Show the Report Link field only when the status is 'Completed' AND request type is 'Compliance Request'
+    if (status === 'Completed' && requestType === 'Compliance Request') {
         reportUrlGroup.style.display = 'block';
-        // It's only REQUIRED if it's a Compliance Request.
-        if (requestType === 'Compliance Request') {
-            reportUrlInput.setAttribute('required', 'true');
-        } else {
-            reportUrlInput.removeAttribute('required');
-        }
+        reportUrlInput.setAttribute('required', 'true');
     } else {
-        // Hide the field and remove the required attribute for all other statuses.
+        // Hide the field and remove the required attribute for all other cases
         reportUrlGroup.style.display = 'none';
         reportUrlInput.removeAttribute('required');
     }
@@ -437,6 +432,9 @@ function showUpdateForm() {
         showError("Could not find the selected request.");
         return;
     }
+
+    // Display the request type
+    document.getElementById('update-request-type').textContent = selectedRequest.RequestType || "Unknown";
 
     // FIX: Handle RequestStatus properly for the dropdown
     let statusValue = "";

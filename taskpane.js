@@ -227,7 +227,7 @@ async function checkExistingRequests() {
 
     try {
         // --- Step 1: Primary lookup by Internet Message ID ---
-        let lookupPayload = { internetMessageId: internetMessageId };
+        let lookupPayload = { InternetMessageId: internetMessageId }; // Use capital 'I' to match schema
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -475,18 +475,29 @@ async function submitNewRequest() {
             priority: document.getElementById(DOM.priority).value,
             dueDate: document.getElementById(DOM.dueDate).value || null,
             trackedDate: new Date().toISOString(),
-            // FIX: The payload was missing the required 'assignedTo' field.
-            // The schema also includes 'trackedBy', so we will send both for completeness.
             assignedTo: currentUser ? currentUser.emailAddress : "Unknown User",
             trackedBy: currentUser ? currentUser.emailAddress : "Unknown User",
-            internetMessageId: currentItem.internetMessageId || "",
-            InternetMessageId: currentItem.internetMessageId || "", // Adding both casing versions for compatibility
+            conversationId: currentItem.conversationId || "", // Keep for backward compatibility
+            InternetMessageId: currentItem.internetMessageId || "", // Capital 'I' as per schema
             messageId: currentItem.internetMessageId || currentItem.itemId || "",
             emailBody: emailBody || ""
         };
         
         console.log("Submitting new request with payload:", payload);
-        console.log("internetMessageId value:", currentItem.internetMessageId);
+        console.log("InternetMessageId value (capital I):", payload.InternetMessageId);
+        
+        // Debug: Log all properties of currentItem for troubleshooting
+        console.log("Current Item Properties available:");
+        for (const prop in currentItem) {
+            // Only log properties that are not functions
+            if (typeof currentItem[prop] !== 'function') {
+                try {
+                    console.log(`- ${prop}: ${JSON.stringify(currentItem[prop])}`);
+                } catch (e) {
+                    console.log(`- ${prop}: [Unable to stringify]`);
+                }
+            }
+        }
         
         // REFACTOR: Using fetch API directly for cleaner code and better error handling.
         const response = await fetch(CONFIG.REQUEST_CREATE_URL, {

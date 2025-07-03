@@ -239,13 +239,13 @@ async function checkExistingRequests() {
         const potentialRequests = await response.json();
 
         if (potentialRequests && potentialRequests.length > 0) {
-            // Success! Found a match with the Conversation ID.
-            console.log("Found existing requests by Conversation ID:", potentialRequests);
+            // Success! Found a match with the Internet Message ID.
+            console.log("Found existing requests by Internet Message ID:", potentialRequests);
             existingRequests = potentialRequests;
             showRequestsPanel(existingRequests);
         } else {
-            // No match found by Conversation ID. Show the new request form.
-            console.log("No existing requests found for this conversation. Showing new request form.");
+            // No match found by Internet Message ID. Show the new request form.
+            console.log("No existing requests found for this Internet Message ID. Showing new request form.");
             loadEmailData();
             showPanel(DOM.requestForm);
         }
@@ -480,11 +480,13 @@ async function submitNewRequest() {
             assignedTo: currentUser ? currentUser.emailAddress : "Unknown User",
             trackedBy: currentUser ? currentUser.emailAddress : "Unknown User",
             internetMessageId: currentItem.internetMessageId || "",
+            InternetMessageId: currentItem.internetMessageId || "", // Adding both casing versions for compatibility
             messageId: currentItem.internetMessageId || currentItem.itemId || "",
             emailBody: emailBody || ""
         };
         
-        console.log("Submitting with corrected payload:", payload);
+        console.log("Submitting new request with payload:", payload);
+        console.log("internetMessageId value:", currentItem.internetMessageId);
         
         // REFACTOR: Using fetch API directly for cleaner code and better error handling.
         const response = await fetch(CONFIG.REQUEST_CREATE_URL, {
@@ -497,10 +499,29 @@ async function submitNewRequest() {
 
         // Check for non-successful responses and provide detailed error info.
         if (!response.ok) {
-            const errorBody = await response.text();
-            console.error("Power Automate Error Body:", errorBody);
+            let errorMessage = `Submission failed. Status: ${response.status}.`;
+            try {
+                const errorBody = await response.text();
+                console.error("Power Automate Error Body:", errorBody);
+                
+                // Try to parse the error to get more details
+                try {
+                    const parsedError = JSON.parse(errorBody);
+                    if (parsedError.error && parsedError.error.message) {
+                        errorMessage += ` Error: ${parsedError.error.message}`;
+                    } else {
+                        errorMessage += ` Details: ${errorBody}`;
+                    }
+                } catch (parseError) {
+                    // If not JSON, just use the raw response
+                    errorMessage += ` Details: ${errorBody}`;
+                }
+            } catch (e) {
+                errorMessage += " Could not retrieve error details.";
+            }
+            
             // Throw a detailed error that will be displayed to the user.
-            throw new Error(`Submission failed. Status: ${response.status}. Details: ${errorBody}`);
+            throw new Error(errorMessage);
         }
         
         // FIX: Optimistically update the UI to avoid race conditions.

@@ -127,10 +127,27 @@ function populateDropdowns() {
     const statusDropdown = document.getElementById("status");
     const updateStatusDropdown = document.getElementById("update-status");
 
-    // Clear existing options and add a default placeholder
-    requestTypeDropdown.innerHTML = '<option value="">Select Request Type...</option>';
-    statusDropdown.innerHTML = '<option value="">Select Status...</option>';
-    updateStatusDropdown.innerHTML = ''; // No placeholder for the update form
+    // Always clear all options before repopulating to prevent duplicates
+    while (requestTypeDropdown.firstChild) {
+        requestTypeDropdown.removeChild(requestTypeDropdown.firstChild);
+    }
+    while (statusDropdown.firstChild) {
+        statusDropdown.removeChild(statusDropdown.firstChild);
+    }
+    while (updateStatusDropdown.firstChild) {
+        updateStatusDropdown.removeChild(updateStatusDropdown.firstChild);
+    }
+
+    // Add a default placeholder
+    const requestTypePlaceholder = document.createElement("option");
+    requestTypePlaceholder.value = "";
+    requestTypePlaceholder.textContent = "Select Request Type...";
+    requestTypeDropdown.appendChild(requestTypePlaceholder);
+
+    const statusPlaceholder = document.createElement("option");
+    statusPlaceholder.value = "";
+    statusPlaceholder.textContent = "Select Status...";
+    statusDropdown.appendChild(statusPlaceholder);
 
     requestTypes.forEach(type => {
         const option = document.createElement("option");
@@ -193,11 +210,13 @@ async function checkExistingRequests() {
             // --- Step 2: Fallback lookup by properties ---
             console.log("No match by Conversation ID. Trying fallback lookup by properties.");
             
-            lookupPayload = {
-                subject: currentItem.subject || "",
-                senderEmail: currentItem.from ? currentItem.from.emailAddress : ""
-            };
-
+            // This is where you would show a new panel asking the user to confirm.
+            // For now, we will log it and proceed to the new request form.
+            // TODO: Implement showLinkConfirmationPanel(potentialRequests) to prompt user to link to one of these requests.
+            console.log("UI ENHANCEMENT: Prompt user to link to one of these requests.");
+            loadEmailData();
+            showPanel('request-form');
+            
             const fallbackResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -249,7 +268,7 @@ function showPanel(panelId, clear=true) {
             toggleReportsRequestedField();
         }
     }
-    // FIX: Only clear messages if the 'clear' flag is true.
+    // Only clear messages if the 'clear' flag is true.
     // This prevents the success toast from being hidden prematurely.
     if (clear) {
         clearMessages();
@@ -467,7 +486,7 @@ async function submitNewRequest() {
             subject: document.getElementById("subject").value,
             senderName: document.getElementById("senderName").value,
             senderEmail: document.getElementById("senderEmail").value,
-            sentDate: currentItem.dateTimeCreated ? currentItem.dateTimeCreated.toISOString() : null,
+            sentDate: currentItem.dateTimeCreated ? new Date(currentItem.dateTimeCreated).toISOString() : null,
             requestType: requestType,
             reportsRequested: parseInt(document.getElementById("reportsRequested").value, 10) || null,
             requestStatus: status,
@@ -705,6 +724,9 @@ function showSuccess(message) {
 }
 
 function clearMessages() {
-    document.getElementById("error-message").style.display = "none";
-    document.getElementById("success-message").style.display = "none";
+    const errorElem = document.getElementById("error-message");
+    const successMsg = document.getElementById("success-message");
+    if (successMsg) successMsg.style.display = "none";
+    const successElem = document.getElementById("success-message");
+    if (successElem) successElem.style.display = "none";
 }

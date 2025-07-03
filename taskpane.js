@@ -389,10 +389,6 @@ function showRequestsPanel(requests, showWithMessages = false) {
             infoDiv.style.marginBottom = '15px';
             infoDiv.innerHTML = `
                 <div><strong>⚠️ Some requests are still being processed</strong></div>
-                <div style="margin-top: 5px;">
-                    New requests take a moment to be fully registered. 
-                    Click "Refresh List" to update with actual IDs before updating.
-                </div>
                 <div style="margin-top: 8px;">
                     <button id="special-refresh-btn" style="margin-top: 0;">Refresh List</button>
                 </div>
@@ -432,8 +428,13 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 const requestTypeText = String(req.RequestType || "Unknown");
                 const statusText = String(req.RequestStatus || "New");
                 const statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
-                const priorityText = String(req.Priority || "Medium");
                 
+                // Convert numeric priority to text for display
+                let priorityText = String(req.Priority || "Medium");
+                if (priorityText === "1") priorityText = "High";
+                else if (priorityText === "2") priorityText = "Medium";
+                else if (priorityText === "3") priorityText = "Low";
+
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
@@ -931,7 +932,7 @@ async function submitUpdate() {
 
         // CRITICAL FIX: Validate that the payload has the correct InternetMessageId property
         // and that it's being sent as a string as expected by SharePoint
-        const parsedPayload = JSON.parse(payloadJson);
+        let parsedPayload = JSON.parse(payloadJson);
         if (!parsedPayload.InternetMessageId && parsedPayload.InternetMessageId !== "") {
             console.error("ERROR: InternetMessageId is missing from the payload!");
         } else if (typeof parsedPayload.InternetMessageId !== 'string') {

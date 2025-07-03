@@ -63,7 +63,7 @@ Office.onReady(async (info) => {
             // existing requests list or a new, populated form.
             populateDropdowns();
             // Await inside try to catch async errors
-            await checkExistingRequests();
+            await checkExistingRequests(true);
 
         } catch (error) {
             console.error("Initialization error:", error);
@@ -88,7 +88,7 @@ function setupGlobalEventHandlers() {
         resetForm();
         showPanel(DOM.requestForm);
     };
-    document.getElementById(DOM.refreshListBtn).onclick = checkExistingRequests;
+    document.getElementById(DOM.refreshListBtn).onclick = () => checkExistingRequests(true);
 
     // Update Form Panel
     document.getElementById(DOM.submitUpdateBtn).onclick = submitUpdate;
@@ -215,7 +215,7 @@ function loadEmailData() {
     }
 }
 
-async function checkExistingRequests() {
+async function checkExistingRequests(forceSwitchPanel = true) {
     if (!currentItem) {
         showError("Cannot access email data.");
         showLoading(false);
@@ -243,52 +243,62 @@ async function checkExistingRequests() {
             console.log("Found existing requests by Internet Message ID:", potentialRequests);
             existingRequests = potentialRequests;
             
-            // Show the request list panel with a more helpful message
-            const container = document.getElementById(DOM.requestListContainer);
-            
-            // We'll show the panel first, then prepend our message afterwards
-            showRequestsPanel(existingRequests);
-            
-            // Add a "Create New" button at the top for better visibility
-            const createAnotherDiv = document.createElement('div');
-            createAnotherDiv.className = 'request-list-item';
-            createAnotherDiv.style.backgroundColor = '#e8f5e9';
-            createAnotherDiv.style.borderColor = 'var(--stryker-orange)';
-            createAnotherDiv.style.padding = '12px';
-            createAnotherDiv.style.marginBottom = '15px';
-            createAnotherDiv.innerHTML = `
-                <div><strong>Found ${potentialRequests.length} existing request(s) for this email</strong></div>
-                <div style="margin-top: 8px;">
-                    <button id="create-another-btn" style="margin-top: 0;">Create Another Request</button>
-                </div>
-            `;
-            
-            // Insert at the top
-            if (container.firstChild) {
-                container.insertBefore(createAnotherDiv, container.firstChild);
-            } else {
-                container.appendChild(createAnotherDiv);
+            // Only proceed with UI updates if forceSwitchPanel is true
+            if (forceSwitchPanel) {
+                // Show the request list panel with a more helpful message
+                const container = document.getElementById(DOM.requestListContainer);
+                
+                // We'll show the panel first, then prepend our message afterwards
+                showRequestsPanel(existingRequests, false);
+                
+                // Add a "Create New" button at the top for better visibility
+                const createAnotherDiv = document.createElement('div');
+                createAnotherDiv.className = 'request-list-item';
+                createAnotherDiv.style.backgroundColor = '#e8f5e9';
+                createAnotherDiv.style.borderColor = 'var(--stryker-orange)';
+                createAnotherDiv.style.padding = '12px';
+                createAnotherDiv.style.marginBottom = '15px';
+                createAnotherDiv.innerHTML = `
+                    <div><strong>Found ${potentialRequests.length} existing request(s) for this email</strong></div>
+                    <div style="margin-top: 8px;">
+                        <button id="create-another-btn" style="margin-top: 0;">Create Another Request</button>
+                    </div>
+                `;
+                
+                // Insert at the top
+                if (container.firstChild) {
+                    container.insertBefore(createAnotherDiv, container.firstChild);
+                } else {
+                    container.appendChild(createAnotherDiv);
+                }
+                
+                // Add event handler for the new button
+                document.getElementById("create-another-btn").onclick = () => {
+                    // Reset the form first to ensure it's clean
+                    resetForm();
+                    // Then show the form panel
+                    showPanel(DOM.requestForm);
+                };
             }
-            
-            // Add event handler for the new button
-            document.getElementById("create-another-btn").onclick = () => {
-                // Reset the form first to ensure it's clean
-                resetForm();
-                // Then show the form panel
-                showPanel(DOM.requestForm);
-            };
+            return true; // Return true if requests were found
         } else {
             // No match found by Internet Message ID. Show the new request form.
             console.log("No existing requests found for this Internet Message ID. Showing new request form.");
-            loadEmailData();
-            showPanel(DOM.requestForm);
+            if (forceSwitchPanel) {
+                loadEmailData();
+                showPanel(DOM.requestForm);
+            }
+            return false; // Return false if no requests were found
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
-        showError("Could not check for existing requests. Please try again.");
-        // Fallback to the new request form on any error during lookup.
-        loadEmailData();
-        showPanel(DOM.requestForm);
+        if (forceSwitchPanel) {
+            showError("Could not check for existing requests. Please try again.");
+            // Fallback to the new request form on any error during lookup.
+            loadEmailData();
+            showPanel(DOM.requestForm);
+        }
+        return false; // Return false on error
     } finally {
         showLoading(false);
     }
@@ -315,14 +325,26 @@ function showPanel(panelId, clear=true) {
     if (clear) {
         clearMessages();
     }
+    
+    // If we're showing the request list panel, make sure the success message is visible
+    // above the panel
+    if (panelId === DOM.requestListPanel) {
+        const successElement = document.getElementById(DOM.successMessage);
+        if (successElement && successElement.style.display === "block") {
+            successElement.style.zIndex = "1000";
+            successElement.style.position = "relative";
+        }
+    }
 }
 
-function showRequestsPanel(requests) {
+function showRequestsPanel(requests, showWithMessages = false) {
     const container = document.getElementById(DOM.requestListContainer);
     container.innerHTML = ''; // Clear previous list
     
-    // Clear any lingering error messages when showing the list
-    clearMessages();
+    // Only clear messages if we're not explicitly showing with messages
+    if (!showWithMessages) {
+        clearMessages();
+    }
     
     console.log("ENTERING showRequestsPanel with:", requests);
     
@@ -594,7 +616,7 @@ async function submitNewRequest() {
         };
         existingRequests.push(newRequestData);
         
-        // Show the success message with the requests list
+        // Show the success message
         const successMsg = existingRequests.length > 1 
             ? "Request created successfully! You now have multiple requests for this email." 
             : "Request created successfully!";
@@ -604,10 +626,33 @@ async function submitNewRequest() {
         resetForm();
         
         // Show the requests panel with the newly created request
-        showRequestsPanel(existingRequests);
+        // Pass true to keep the success message visible
+        showRequestsPanel(existingRequests, true);
         
         // Refresh the list from the server to get the real data with the actual ID
-        await checkExistingRequests();
+        // but don't change the current view
+        try {
+            // Get the updated requests without triggering UI changes
+            let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+            const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lookupPayload)
+            });
+
+            if (response.ok) {
+                const updatedRequests = await response.json();
+                if (updatedRequests && updatedRequests.length > 0) {
+                    // Update our local array without changing the view
+                    existingRequests = updatedRequests;
+                    // Refresh the list view without changing panels or clearing success message
+                    showRequestsPanel(existingRequests, true);
+                }
+            }
+        } catch (refreshError) {
+            console.error("Error refreshing request list:", refreshError);
+            // Don't show an error to the user, as the submission was successful
+        }
 
     } catch (error) {
         console.error("Submit error details:", error);
@@ -694,8 +739,29 @@ async function submitUpdate() {
 
         showSuccess("Request updated successfully!");
         
-        // Immediately refresh the list to show the update
-        await checkExistingRequests();
+        // Refresh the list to show the update, but stay on the request list view
+        try {
+            // Get the updated requests without triggering UI changes
+            let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+            const refreshResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lookupPayload)
+            });
+
+            if (refreshResponse.ok) {
+                const updatedRequests = await refreshResponse.json();
+                if (updatedRequests && updatedRequests.length > 0) {
+                    // Update our local array and refresh the list view
+                    existingRequests = updatedRequests;
+                    showRequestsPanel(existingRequests, true);
+                }
+            }
+        } catch (refreshError) {
+            console.error("Error refreshing request list after update:", refreshError);
+            // Still show the requests panel even if refresh fails
+            showRequestsPanel(existingRequests, true);
+        }
 
     } catch (error) {
         console.error("Update submission error:", error);

@@ -245,40 +245,8 @@ async function checkExistingRequests(forceSwitchPanel = true) {
             
             // Only proceed with UI updates if forceSwitchPanel is true
             if (forceSwitchPanel) {
-                // Show the request list panel with a more helpful message
-                const container = document.getElementById(DOM.requestListContainer);
-                
-                // We'll show the panel first, then prepend our message afterwards
+                // Simply show the request list panel without the redundant info box
                 showRequestsPanel(existingRequests, false);
-                
-                // Add a "Create New" button at the top for better visibility
-                const createAnotherDiv = document.createElement('div');
-                createAnotherDiv.className = 'request-list-item';
-                createAnotherDiv.style.backgroundColor = '#e8f5e9';
-                createAnotherDiv.style.borderColor = 'var(--stryker-orange)';
-                createAnotherDiv.style.padding = '12px';
-                createAnotherDiv.style.marginBottom = '15px';
-                createAnotherDiv.innerHTML = `
-                    <div><strong>Found ${potentialRequests.length} existing request(s) for this email</strong></div>
-                    <div style="margin-top: 8px;">
-                        <button id="create-another-btn" style="margin-top: 0;">Create Another Request</button>
-                    </div>
-                `;
-                
-                // Insert at the top
-                if (container.firstChild) {
-                    container.insertBefore(createAnotherDiv, container.firstChild);
-                } else {
-                    container.appendChild(createAnotherDiv);
-                }
-                
-                // Add event handler for the new button
-                document.getElementById("create-another-btn").onclick = () => {
-                    // Reset the form first to ensure it's clean
-                    resetForm();
-                    // Then show the form panel
-                    showPanel(DOM.requestForm);
-                };
             }
             return true; // Return true if requests were found
         } else {
@@ -358,6 +326,26 @@ function showRequestsPanel(requests, showWithMessages = false) {
     if (!Array.isArray(requests)) {
         console.error("requests is not an array, converting:", requests);
         requests = [requests]; // Wrap in array
+    }
+    
+    // Add a "Create Another Request" button at the top
+    if (requests.length > 0) {
+        const createAnotherBtn = document.createElement('button');
+        createAnotherBtn.textContent = 'Create Another Request';
+        createAnotherBtn.style.backgroundColor = 'var(--stryker-orange)';
+        createAnotherBtn.style.marginBottom = '15px';
+        createAnotherBtn.style.marginTop = '0';
+        
+        createAnotherBtn.onclick = () => {
+            resetForm();
+            showPanel(DOM.requestForm);
+        };
+        
+        // Add the button at the top of the list
+        const btnWrapper = document.createElement('div');
+        btnWrapper.style.textAlign = 'right';
+        btnWrapper.appendChild(createAnotherBtn);
+        container.appendChild(btnWrapper);
     }
     
     // Process the requests to ensure the SharePoint complex objects are properly handled
@@ -583,17 +571,46 @@ async function submitNewRequest() {
             console.error("Error formatting tracked date:", e);
         }
         
-        // Create a descriptive error message with guidance
+        // Get status and priority for better guidance
+        let statusText = duplicateRequest.RequestStatus || "Unknown";
+        if (typeof statusText === 'object' && statusText.Value) {
+            statusText = statusText.Value;
+        }
+        
+        // Create a descriptive error message with guidance and highlight the duplicate request details
         const errorMessage = `
-            <p>A request of type "${requestType}" already exists for this email (created on ${trackedDate}).</p>
+            <p><strong>⚠️ Duplicate Request</strong></p>
+            <p>A request of type "<strong>${requestType}</strong>" already exists for this email.</p>
+            <div style="background-color: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin: 10px 0;">
+                <p style="margin: 0;"><strong>Existing Request Details:</strong></p>
+                <p style="margin: 5px 0;">• Type: ${requestType}</p>
+                <p style="margin: 5px 0;">• Status: ${statusText}</p>
+                <p style="margin: 5px 0;">• Created: ${trackedDate}</p>
+            </div>
             <p>You cannot create multiple requests of the same type for one email.</p>
-            <p>Please select the existing request from the list and use the Update button to modify it instead.</p>
+            <p>Please view and update the existing request instead.</p>
+            <div style="margin-top: 10px;">
+                <button id="view-duplicate-btn" style="background-color: #ff9800; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                    View Existing Request
+                </button>
+            </div>
         `;
         
+        // Show the error but stay on the form
         showError(errorMessage);
         
-        // Switch to the request list view immediately to help the user find the existing request
-        showRequestsPanel(existingRequests);
+        // Add a button event handler to go to the list when clicked
+        setTimeout(() => {
+            const viewButton = document.getElementById("view-duplicate-btn");
+            if (viewButton) {
+                viewButton.addEventListener("click", () => {
+                    showRequestsPanel(existingRequests);
+                    // Highlight the duplicate request after the panel is shown
+                    setTimeout(() => highlightDuplicateRequest(requestType), 100);
+                });
+            }
+        }, 50);
+        
         return;
     }
 
@@ -781,6 +798,19 @@ async function submitUpdate() {
         return;
     }
 
+    // Verify we have access to the InternetMessageId before proceeding
+    let hasInternetMessageId = false;
+    if (selectedRequest.InternetMessageId) {
+        hasInternetMessageId = true;
+    } else if (currentItem && currentItem.internetMessageId) {
+        hasInternetMessageId = true;
+    }
+    
+    if (!hasInternetMessageId) {
+        showError("Cannot update request: InternetMessageId is not available. Please refresh the list and try again.");
+        return;
+    }
+
     const newStatus = document.getElementById(DOM.updateStatus).value;
     const reportUrl = document.getElementById(DOM.reportUrl).value;
     const requestType = selectedRequest.RequestType;
@@ -797,13 +827,33 @@ async function submitUpdate() {
 
     try {
         const notesValue = document.getElementById(DOM.updateNotes).value.trim();
+        
+        // Get the InternetMessageId - try from the selected request first, then fallback to current email
+        let internetMessageId = null;
+        
+        // First check if the selected request has an InternetMessageId
+        if (selectedRequest.InternetMessageId) {
+            internetMessageId = selectedRequest.InternetMessageId;
+            console.log("Using InternetMessageId from selected request:", internetMessageId);
+        } else if (currentItem && currentItem.internetMessageId) {
+            internetMessageId = currentItem.internetMessageId;
+            console.log("Using InternetMessageId from current email item:", internetMessageId);
+        } else {
+            console.warn("No InternetMessageId found in request or current item!");
+        }
+        
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
             // Add priority to payload
             priority: priority,
-            updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
+            updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
+            // Add the InternetMessageId - CRITICAL for Power Automate
+            InternetMessageId: internetMessageId
         };
+        
+        // Add some debugging output
+        console.log("Update payload with InternetMessageId:", payload);
 
         // Only include the reportUrl if it has a value.
         if (reportUrl) {
@@ -836,7 +886,27 @@ async function submitUpdate() {
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Update error response:", errorText);
-            throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+            
+            // Try to parse error as JSON for better error details
+            let detailedErrorMessage = `HTTP Error ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.error && errorJson.error.message) {
+                    detailedErrorMessage += `: ${errorJson.error.message}`;
+                    
+                    // Check specifically for missing InternetMessageId
+                    if (errorJson.error.message.includes("missing required property 'body/InternetMessageId'")) {
+                        detailedErrorMessage = "Update failed: The InternetMessageId is missing. Please refresh and try again.";
+                    }
+                } else {
+                    detailedErrorMessage += `: ${errorText}`;
+                }
+            } catch (e) {
+                // If not JSON, just use text
+                detailedErrorMessage += `: ${errorText}`;
+            }
+            
+            throw new Error(detailedErrorMessage);
         }
 
         showSuccess("Request updated successfully!");
@@ -844,7 +914,7 @@ async function submitUpdate() {
         // Refresh the list to show the update, but stay on the request list view
         try {
             // Get the updated requests without triggering UI changes
-            let lookupPayload = { InternetMessageId: currentItem.internetMessageId };
+            let lookupPayload = { InternetMessageId: internetMessageId };
             const refreshResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -987,19 +1057,33 @@ function showLoading(show, message = "Loading...") {
 
 function showError(message) {
     const errorElement = document.getElementById(DOM.errorMessage);
+    
+    // Determine if this is a duplicate request error
+    const isDuplicateError = message.includes('Duplicate Request') || 
+                            message.includes('already exists for this email');
+    
     // Support HTML content in error messages
     if (message.includes('<p>') || message.includes('<div>')) {
         errorElement.innerHTML = message; // Use innerHTML for HTML content
     } else {
         errorElement.textContent = message; // Use textContent for plain text (safer)
     }
+    
     errorElement.style.display = "block";
     errorElement.style.color = "white";
     errorElement.style.padding = "12px";
-    errorElement.style.border = "1px solid #d32f2f";
+    
+    // Use different styling for duplicate errors (orange warning) vs other errors (red)
+    if (isDuplicateError) {
+        errorElement.style.border = "1px solid #ff9800";
+        errorElement.style.backgroundColor = "#ff9800";
+    } else {
+        errorElement.style.border = "1px solid #d32f2f";
+        errorElement.style.backgroundColor = "#d32f2f";
+    }
+    
     errorElement.style.borderRadius = "4px";
     errorElement.style.marginBottom = "15px";
-    errorElement.style.backgroundColor = "#d32f2f";
     errorElement.style.fontWeight = "bold";
     errorElement.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
     showLoading(false);
@@ -1007,8 +1091,8 @@ function showError(message) {
     // Log the error to console for debugging
     console.error("ERROR SHOWN TO USER:", message);
     
-    // Auto-dismiss error after 8 seconds for errors that aren't critical
-    if (!message.includes("already exists for this email")) {
+    // Auto-dismiss error after 8 seconds for errors that aren't critical or duplicates
+    if (!isDuplicateError) {
         setTimeout(clearMessages, 8000);
     }
 }
@@ -1070,11 +1154,70 @@ function findDuplicateRequest(requestType) {
         return normalizedExistingType === normalizedType;
     });
     
+    // Enhance debugging info
     if (duplicate) {
         console.log("Found duplicate request:", duplicate);
+        
+        // Log additional details about the duplicate
+        const duplicateId = duplicate.ID || duplicate.Id || "unknown";
+        const duplicateStatus = duplicate.RequestStatus || "unknown";
+        console.log(`Duplicate request details: ID=${duplicateId}, Status=${duplicateStatus}`);
+        
+        // Check if it's a placeholder ID
+        if (String(duplicateId).startsWith('new-')) {
+            console.log("Note: This duplicate has a placeholder ID and is still processing");
+        }
     } else {
         console.log("No duplicate request found for type:", requestType);
     }
     
-    return duplicate; // Will be undefined if no duplicate is found
+    return duplicate; // Will return the duplicate object or null if no duplicate is found
+}
+
+/**
+ * Highlights a request in the list that matches the given request type.
+ * Used when showing the list after a duplicate warning to make it obvious
+ * which item is the duplicate.
+ * @param {string} requestType - The type of request to highlight
+ */
+function highlightDuplicateRequest(requestType) {
+    // Normalize the request type
+    const normalizedType = requestType.trim().toLowerCase();
+    
+    // Get all the request items in the list
+    const requestItems = document.querySelectorAll('.request-list-item');
+    
+    // Loop through them to find and highlight the matching one
+    requestItems.forEach(item => {
+        // Check if this item contains the request type text
+        const typeElement = item.querySelector('strong');
+        if (typeElement && typeElement.textContent.trim().toLowerCase() === normalizedType) {
+            // This is the duplicate, highlight it
+            item.style.border = "2px solid #ff9800";
+            item.style.backgroundColor = "#fff8e1";
+            
+            // Add a duplicate indicator
+            const duplicateIndicator = document.createElement('div');
+            duplicateIndicator.innerHTML = `
+                <div style="background-color: #ff9800; color: white; padding: 3px 8px; 
+                border-radius: 12px; display: inline-block; margin-top: 5px; font-size: 11px; font-weight: bold;">
+                    Duplicate Found
+                </div>
+            `;
+            
+            // Add it after the strong element
+            typeElement.parentNode.appendChild(duplicateIndicator);
+            
+            // Scroll to this item
+            setTimeout(() => {
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+            
+            // Auto-select the radio button for this item
+            const radioBtn = item.querySelector('input[type="radio"]');
+            if (radioBtn) {
+                radioBtn.checked = true;
+            }
+        }
+    });
 }

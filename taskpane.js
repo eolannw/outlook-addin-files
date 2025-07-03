@@ -880,8 +880,9 @@ async function submitUpdate() {
             // Send priority directly as the string value (Low, Medium, High)
             priority: priority,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
-            // Add the InternetMessageId as an INTEGER - CRITICAL for Power Automate
-            InternetMessageId: parseInt(internetMessageId, 10) || 0
+            // Keep the original InternetMessageId as a string - don't convert to integer
+            // This is critical so it can be found in future lookups
+            InternetMessageId: internetMessageId
         };
         
         // Add some debugging output
@@ -978,6 +979,8 @@ async function submitUpdate() {
         try {
             // Get the updated requests without triggering UI changes
             let lookupPayload = { InternetMessageId: internetMessageId };
+            console.log("Looking up requests with InternetMessageId after update:", internetMessageId);
+            
             const refreshResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -987,16 +990,29 @@ async function submitUpdate() {
             if (refreshResponse.ok) {
                 const updatedRequests = await refreshResponse.json();
                 if (updatedRequests && updatedRequests.length > 0) {
+                    console.log("Found updated requests:", updatedRequests.length);
                     // Update our local array and refresh the list view
                     existingRequests = updatedRequests;
                     showRequestsPanel(existingRequests, true);
+                } else {
+                    console.warn("No requests found after update. Showing existing list.");
+                    // Still show the requests panel even if no requests found
+                    showRequestsPanel(existingRequests, true);
                 }
+            } else {
+                console.warn("Error response when refreshing requests:", refreshResponse.status);
+                // Still show the requests panel even if refresh fails
+                showRequestsPanel(existingRequests, true);
             }
         } catch (refreshError) {
             console.error("Error refreshing request list after update:", refreshError);
             // Still show the requests panel even if refresh fails
             showRequestsPanel(existingRequests, true);
         }
+        
+        // Force showing the request list panel in case the above code didn't work
+        console.log("Ensuring request list panel is shown");
+        showPanel(DOM.requestListPanel, false);
 
     } catch (error) {
         console.error("Update submission error:", error);

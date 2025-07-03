@@ -601,20 +601,20 @@ async function submitNewRequest() {
     try {
         const emailBody = await getBodyAsText();
         
-        // Create a string-to-integer mapping for priority values
+        // Create a mapping for priority values that keeps the values as strings
         const priorityMap = {
-            "High": 1,
-            "Medium": 2,
-            "Low": 3
+            "High": "1",
+            "Medium": "2",
+            "Low": "3"
         };
         
         // Get the selected priority text value
         const priorityText = document.getElementById(DOM.priority).value;
         
-        // Convert to numeric value based on the map
-        let priorityValue = priorityMap[priorityText] || 2; // Default to Medium (2) if not found
+        // Convert to the mapped value but keep as string
+        let priorityValue = priorityMap[priorityText] || "2"; // Default to Medium (2) if not found
         
-        console.log("New request: Converting priority from", priorityText, "to numeric value:", priorityValue);
+        console.log("New request: Converting priority from", priorityText, "to value:", priorityValue);
         
         const payload = {
             subject: document.getElementById(DOM.subject).value,
@@ -641,16 +641,11 @@ async function submitNewRequest() {
         console.log("DATA TYPE CHECK - priority:", typeof payload.priority, payload.priority);
         console.log("DATA TYPE CHECK - reportsRequested:", typeof payload.reportsRequested, payload.reportsRequested);
         
-        // Force correct data types by using a specific replacer function
-        const payloadJson = JSON.stringify(payload, (key, value) => {
-            // Force numeric fields to be numbers
-            if (key === 'priority' || key === 'reportsRequested') {
-                return value === null || value === "" ? null : Number(value);
-            }
-            return value;
-        });
+        // Use standard JSON.stringify without a replacer to preserve types
+        const payloadJson = JSON.stringify(payload);
         
         console.log("Final JSON payload to send:", payloadJson);
+        console.log("JSON parsed back:", JSON.parse(payloadJson));
         
         // REFACTOR: Using fetch API directly for cleaner code and better error handling.
         const response = await fetch(CONFIG.REQUEST_CREATE_URL, {
@@ -672,16 +667,23 @@ async function submitNewRequest() {
                         if (parsedError.error && parsedError.error.message) {
                             errorMessage += ` Error: ${parsedError.error.message}`;
                             
-                            // Check for type mismatch errors (specifically Integer vs String issues)
-                            if (parsedError.error.message.includes("Expected Integer but got String")) {
-                                // Extract the field name if possible
-                                const fieldMatch = parsedError.error.message.match(/Expected Integer but got String for '([^']+)'/);
-                                const fieldName = fieldMatch ? fieldMatch[1].replace('body/', '') : 'a field';
-                                
-                                console.error(`Type mismatch detected in field: ${fieldName}`);
+                            // Check for any type mismatch errors
+                            if (parsedError.error.message.includes("Invalid type. Expected")) {
+                                // This will match both String/Integer and Integer/String type mismatches
+                                console.error(`Type mismatch detected in error: ${parsedError.error.message}`);
                                 console.log("Original payload:", payload);
                                 
-                                errorMessage = `Submission failed: Type mismatch error in ${fieldName}. The system expected a number but received text.`;
+                                // Dump all values with their types for debugging
+                                console.log("PAYLOAD FIELD TYPES:");
+                                Object.entries(payload).forEach(([key, value]) => {
+                                    console.log(`Field ${key}: type=${typeof value}, value=${value}`);
+                                });
+                                
+                                // Run the schema analysis
+                                parseSchemaRequirements(parsedError.error.message);
+                                
+                                // More user-friendly error message
+                                errorMessage = `Submission failed: Data type mismatch in the request. Please contact IT support.`;
                             }
                         } else {
                             errorMessage += ` Details: ${errorBody}`;
@@ -865,26 +867,21 @@ async function submitUpdate() {
             console.warn("No InternetMessageId found in request or current item!");
         }
         
-        // Create a string-to-integer mapping for priority values
-        const priorityMap = {
-            "High": 1,
-            "Medium": 2,
-            "Low": 3
-        };
+        // Power Automate expects priority as a string with values "Low", "Medium", "High"
+        // No mapping needed - we'll use the original string values
         
-        // Convert the priority to a numeric value based on the map
-        let priorityValue = priorityMap[priority] || 2; // Default to Medium (2) if not found
-        
-        console.log("Converting priority from", priority, "to numeric value:", priorityValue);
+        console.log("Using priority value directly:", priority);
         
         const payload = {
+            // Keep requestId as a number as Power Automate expects an integer
             requestId: parseInt(selectedId, 10),
+            // Keep strings as strings
             requestStatus: newStatus,
-            // Always use numeric priority value
-            priority: priorityValue,
+            // Send priority directly as the string value (Low, Medium, High)
+            priority: priority,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
-            // Add the InternetMessageId - CRITICAL for Power Automate
-            InternetMessageId: internetMessageId
+            // Add the InternetMessageId as an INTEGER - CRITICAL for Power Automate
+            InternetMessageId: parseInt(internetMessageId, 10) || 0
         };
         
         // Add some debugging output
@@ -892,6 +889,7 @@ async function submitUpdate() {
         console.log("DATA TYPE CHECK - requestId:", typeof payload.requestId, payload.requestId);
         console.log("DATA TYPE CHECK - priority:", typeof payload.priority, payload.priority);
         console.log("DATA TYPE CHECK - requestStatus:", typeof payload.requestStatus, payload.requestStatus);
+        console.log("DATA TYPE CHECK - InternetMessageId:", typeof payload.InternetMessageId, payload.InternetMessageId);
 
         // Only include the reportUrl if it has a value.
         if (reportUrl) {
@@ -912,16 +910,14 @@ async function submitUpdate() {
 
         console.log("Update payload:", payload);
 
-        // Force correct data types by using a specific replacer function
-        const payloadJson = JSON.stringify(payload, (key, value) => {
-            // Force numeric fields to be numbers
-            if (key === 'requestId' || key === 'priority') {
-                return Number(value); // Ensure it's a number
-            }
-            return value;
-        });
+        // Custom function to manage data types for Power Automate
+        // Based on the error message, we need to keep requestId as a number but priority might need to be a string
+        const payloadJson = JSON.stringify(payload);
         
         console.log("Final JSON payload to send:", payloadJson);
+        
+        // Also log parsed JSON to verify types
+        console.log("JSON parsed back:", JSON.parse(payloadJson));
 
         // Using the correct update flow URL
         const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { 
@@ -947,13 +943,10 @@ async function submitUpdate() {
                     if (errorJson.error.message.includes("missing required property 'body/InternetMessageId'")) {
                         detailedErrorMessage = "Update failed: The InternetMessageId is missing. Please refresh and try again.";
                     }
-                    // Check for type mismatch errors (specifically Integer vs String issues)
-                    else if (errorJson.error.message.includes("Expected Integer but got String")) {
-                        // Extract the field name if possible
-                        const fieldMatch = errorJson.error.message.match(/Expected Integer but got String for '([^']+)'/);
-                        const fieldName = fieldMatch ? fieldMatch[1].replace('body/', '') : 'a field';
-                        
-                        console.error(`Type mismatch detected in field: ${fieldName}`);
+                    // Check for any type mismatch errors
+                    else if (errorJson.error.message.includes("Invalid type. Expected")) {
+                        // This will match both String/Integer and Integer/String type mismatches
+                        console.error(`Type mismatch detected in error: ${errorJson.error.message}`);
                         console.log("Original payload:", payload);
                         
                         // Dump all values with their types for debugging
@@ -962,7 +955,11 @@ async function submitUpdate() {
                             console.log(`Field ${key}: type=${typeof value}, value=${value}`);
                         });
                         
-                        detailedErrorMessage = `Update failed: Type mismatch error in ${fieldName}. The system expected a number but received text.`;
+                        // Run the schema analysis
+                        parseSchemaRequirements(errorJson.error.message);
+                        
+                        // More user-friendly error message
+                        detailedErrorMessage = `Update failed: Data type mismatch in the request. Please contact IT support.`;
                     }
                 } else {
                     detailedErrorMessage += `: ${errorText}`;
@@ -1012,6 +1009,46 @@ async function submitUpdate() {
 }
 
 // --- HELPER FUNCTIONS ---
+
+/**
+ * Parse an error message from Power Automate to determine expected schema types.
+ * This helps developers understand what data types are expected by Power Automate.
+ * @param {string} errorMessage - The error message from Power Automate
+ */
+function parseSchemaRequirements(errorMessage) {
+    console.log("SCHEMA ANALYSIS: Analyzing Power Automate schema requirements");
+    
+    // Extract type mismatch information
+    const typeMismatches = [];
+    const regex = /Invalid type\. Expected (\w+) but got (\w+)(?:\.| for '([^']+)')/g;
+    let match;
+    
+    while ((match = regex.exec(errorMessage)) !== null) {
+        const expected = match[1];
+        const received = match[2];
+        const field = match[3] ? match[3].replace('body/', '') : 'unknown field';
+        
+        typeMismatches.push({
+            field,
+            expected,
+            received
+        });
+    }
+    
+    if (typeMismatches.length > 0) {
+        console.log("SCHEMA ANALYSIS: Found the following type mismatches:");
+        typeMismatches.forEach(mismatch => {
+            console.log(`Field: ${mismatch.field}, Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
+        });
+        
+        console.log("SCHEMA ANALYSIS: Suggested field types:");
+        typeMismatches.forEach(mismatch => {
+            console.log(`${mismatch.field}: ${mismatch.expected}`);
+        });
+    } else {
+        console.log("SCHEMA ANALYSIS: No clear type mismatches found in error message");
+    }
+}
 
 /**
  * Finds the selected request from the radio buttons in the list.

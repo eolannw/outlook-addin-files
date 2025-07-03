@@ -221,13 +221,13 @@ async function checkExistingRequests() {
         showLoading(false);
         return;
     }
-    const conversationId = currentItem.conversationId;
-    console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
-    console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
+    const internetMessageId = currentItem.internetMessageId;
+    console.log("CRITICAL_DEBUG: Internet Message ID for this email item is:", internetMessageId);
+    console.log("CRITICAL_DEBUG: Internet Message ID is shared across mailboxes (unlike conversationId)");
 
     try {
-        // --- Step 1: Primary lookup by Conversation ID ---
-        let lookupPayload = { conversationId: conversationId };
+        // --- Step 1: Primary lookup by Internet Message ID ---
+        let lookupPayload = { internetMessageId: internetMessageId };
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -479,7 +479,7 @@ async function submitNewRequest() {
             // The schema also includes 'trackedBy', so we will send both for completeness.
             assignedTo: currentUser ? currentUser.emailAddress : "Unknown User",
             trackedBy: currentUser ? currentUser.emailAddress : "Unknown User",
-            conversationId: currentItem.conversationId || "",
+            internetMessageId: currentItem.internetMessageId || "",
             messageId: currentItem.internetMessageId || currentItem.itemId || "",
             emailBody: emailBody || ""
         };

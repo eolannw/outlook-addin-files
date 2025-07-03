@@ -1,6 +1,45 @@
 // --- CONFIGURATION ---
 // The CONFIG object has been moved to config.js and will be loaded from there.
 
+// Centralized DOM element IDs for easier management and to prevent typos.
+const DOM = {
+    loading: 'loading',
+    errorMessage: 'error-message',
+    successMessage: 'success-message',
+    // Panels
+    requestForm: 'request-form',
+    requestListPanel: 'request-list-panel',
+    updateFormPanel: 'update-form-panel',
+    // New Request Form
+    subject: 'subject',
+    senderName: 'senderName',
+    senderEmail: 'senderEmail',
+    sentDate: 'sentDate',
+    requestType: 'requestType',
+    reportsRequestedGroup: 'reports-requested-group',
+    reportsRequested: 'reportsRequested',
+    status: 'status',
+    notes: 'notes',
+    priority: 'priority',
+    dueDate: 'dueDate',
+    submitBtn: 'submit-btn',
+    resetBtn: 'reset-btn',
+    // Request List Panel
+    requestListContainer: 'request-list-container',
+    updateSelectedBtn: 'update-selected-btn',
+    createNewBtn: 'create-new-btn',
+    refreshListBtn: 'refresh-list-btn',
+    // Update Form Panel
+    updateRequestType: 'update-request-type',
+    updateStatus: 'update-status',
+    updateNotes: 'update-notes',
+    updatePriority: 'update-priority',
+    reportUrlGroup: 'report-url-group',
+    reportUrl: 'report-url',
+    submitUpdateBtn: 'submit-update-btn',
+    backToListBtn: 'back-to-list-btn'
+};
+
 // Global state variables
 let currentItem;
 let currentUser;
@@ -11,7 +50,7 @@ Office.onReady(async (info) => {
     if (info.host === Office.HostType.Outlook) {
         // Hide all panels initially
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-        document.getElementById("loading").style.display = "block";
+        document.getElementById(DOM.loading).style.display = "block";
 
         try {
             setupGlobalEventHandlers();
@@ -23,6 +62,7 @@ Office.onReady(async (info) => {
             // The result of that check will then determine whether to show the
             // existing requests list or a new, populated form.
             populateDropdowns();
+            // Await inside try to catch async errors
             await checkExistingRequests();
 
         } catch (error) {
@@ -30,50 +70,42 @@ Office.onReady(async (info) => {
             showError("Could not initialize the add-in. Please try again.");
             // FIX: Load data before showing the form as a fallback.
             loadEmailData();
-            showPanel('request-form');
+            showPanel(DOM.requestForm);
         }
     }
 });
 
 function setupGlobalEventHandlers() {
     // New Request Form
-    document.getElementById("submit-btn").onclick = submitNewRequest;
-    document.getElementById("reset-btn").onclick = resetForm;
-    document.getElementById("requestType").onchange = toggleReportsRequestedField;
+    document.getElementById(DOM.submitBtn).onclick = submitNewRequest;
+    document.getElementById(DOM.resetBtn).onclick = resetForm;
+    document.getElementById(DOM.requestType).onchange = toggleReportsRequestedField;
 
     // Request List Panel
-    document.getElementById("update-selected-btn").onclick = () => showUpdateForm();
+    document.getElementById(DOM.updateSelectedBtn).onclick = () => showUpdateForm();
     // Modified to load email data when creating a new request from the list
-    document.getElementById("create-new-btn").onclick = () => {
+    document.getElementById(DOM.createNewBtn).onclick = () => {
         loadEmailData();
-        showPanel('request-form');
+        showPanel(DOM.requestForm);
     };
-    document.getElementById("refresh-list-btn").onclick = checkExistingRequests;
+    document.getElementById(DOM.refreshListBtn).onclick = checkExistingRequests;
 
     // Update Form Panel
-    document.getElementById("submit-update-btn").onclick = submitUpdate;
-    document.getElementById("back-to-list-btn").onclick = () => showRequestsPanel(existingRequests);
-    document.getElementById("update-status").onchange = toggleReportUrlField;
+    document.getElementById(DOM.submitUpdateBtn).onclick = submitUpdate;
+    document.getElementById(DOM.backToListBtn).onclick = () => showRequestsPanel(existingRequests);
+    document.getElementById(DOM.updateStatus).onchange = toggleReportUrlField;
 }
 
 // --- UI TOGGLES ---
 
 function toggleReportUrlField() {
-    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
-    if (!selectedRadio) return;
-
-    const selectedId = selectedRadio.value;
-    const selectedRequest = existingRequests.find(r => {
-        const rId = r.ID !== undefined ? r.ID : r.Id;
-        return String(rId) === String(selectedId);
-    });
-
+    const selectedRequest = getSelectedRequest();
     if (!selectedRequest) return;
 
     const requestType = selectedRequest.RequestType;
-    const status = document.getElementById('update-status').value;
-    const reportUrlGroup = document.getElementById('report-url-group');
-    const reportUrlInput = document.getElementById('report-url');
+    const status = document.getElementById(DOM.updateStatus).value;
+    const reportUrlGroup = document.getElementById(DOM.reportUrlGroup);
+    const reportUrlInput = document.getElementById(DOM.reportUrl);
 
     // Show the Report Link field only when the status is 'Completed' AND request type is 'Compliance Request'
     if (status === 'Completed' && requestType === 'Compliance Request') {
@@ -87,9 +119,9 @@ function toggleReportUrlField() {
 }
 
 function toggleReportsRequestedField() {
-    const requestType = document.getElementById("requestType").value;
-    const reportsGroup = document.getElementById("reports-requested-group");
-    const reportsInput = document.getElementById("reportsRequested");
+    const requestType = document.getElementById(DOM.requestType).value;
+    const reportsGroup = document.getElementById(DOM.reportsRequestedGroup);
+    const reportsInput = document.getElementById(DOM.reportsRequested);
 
     if (requestType === "Compliance Request") {
         reportsGroup.style.display = "block";
@@ -123,9 +155,9 @@ function populateDropdowns() {
         "Cancelled"
     ];
 
-    const requestTypeDropdown = document.getElementById("requestType");
-    const statusDropdown = document.getElementById("status");
-    const updateStatusDropdown = document.getElementById("update-status");
+    const requestTypeDropdown = document.getElementById(DOM.requestType);
+    const statusDropdown = document.getElementById(DOM.status);
+    const updateStatusDropdown = document.getElementById(DOM.updateStatus);
 
     // Always clear all options before repopulating to prevent duplicates
     while (requestTypeDropdown.firstChild) {
@@ -173,19 +205,24 @@ function loadEmailData() {
             showError("Cannot access email data.");
             return;
         }
-        document.getElementById("subject").value = currentItem.subject || "(No subject)";
+        document.getElementById(DOM.subject).value = currentItem.subject || "(No subject)";
         const sender = currentItem.from;
-        document.getElementById("senderName").value = sender ? sender.displayName : "(Unknown sender)";
-        document.getElementById("senderEmail").value = sender ? sender.emailAddress : "(Unknown email)";
-        document.getElementById("sentDate").value = currentItem.dateTimeCreated ? formatDate(currentItem.dateTimeCreated, true) : "(Unknown date)";
+        document.getElementById(DOM.senderName).value = sender ? sender.displayName : "(Unknown sender)";
+        document.getElementById(DOM.senderEmail).value = sender ? sender.emailAddress : "(Unknown email)";
+        document.getElementById(DOM.sentDate).value = currentItem.dateTimeCreated ? formatDate(currentItem.dateTimeCreated, true) : "(Unknown date)";
     } catch (error) {
         showError("Error loading email data: " + error.message);
     }
 }
 
 async function checkExistingRequests() {
-    showLoading(true, "Checking for existing requests...");
+    if (!currentItem) {
+        showError("Cannot access email data.");
+        showLoading(false);
+        return;
+    }
     const conversationId = currentItem.conversationId;
+    console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
     console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
 
     try {
@@ -199,7 +236,7 @@ async function checkExistingRequests() {
 
         if (!response.ok) throw new Error(`HTTP error ${response.status}`);
         
-        let potentialRequests = await response.json();
+        const potentialRequests = await response.json();
 
         if (potentialRequests && potentialRequests.length > 0) {
             // Success! Found a match with the Conversation ID.
@@ -207,47 +244,17 @@ async function checkExistingRequests() {
             existingRequests = potentialRequests;
             showRequestsPanel(existingRequests);
         } else {
-            // --- Step 2: Fallback lookup by properties ---
-            console.log("No match by Conversation ID. Trying fallback lookup by properties.");
-            
-            // This is where you would show a new panel asking the user to confirm.
-            // For now, we will log it and proceed to the new request form.
-            // TODO: Implement showLinkConfirmationPanel(potentialRequests) to prompt user to link to one of these requests.
-            console.log("UI ENHANCEMENT: Prompt user to link to one of these requests.");
+            // No match found by Conversation ID. Show the new request form.
+            console.log("No existing requests found for this conversation. Showing new request form.");
             loadEmailData();
-            showPanel('request-form');
-            
-            const fallbackResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lookupPayload)
-            });
-
-            if (!fallbackResponse.ok) throw new Error(`HTTP error ${fallbackResponse.status} on fallback`);
-
-            potentialRequests = await fallbackResponse.json();
-
-            if (potentialRequests && potentialRequests.length > 0) {
-                // Found potential matches. Ask the user to confirm.
-                console.log("Found potential matches by properties:", potentialRequests);
-                // This is where you would show a new panel asking the user to confirm.
-                // For now, we will log it and proceed to the new request form.
-                // A future enhancement would be to build a "showLinkConfirmationPanel(potentialRequests)" function.
-                console.log("UI ENHANCEMENT: Prompt user to link to one of these requests.");
-                loadEmailData();
-                showPanel('request-form');
-            } else {
-                // No matches found by any method. Show the new request form.
-                console.log("No requests found by any method.");
-                loadEmailData();
-                showPanel('request-form');
-            }
+            showPanel(DOM.requestForm);
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);
         showError("Could not check for existing requests. Please try again.");
+        // Fallback to the new request form on any error during lookup.
         loadEmailData();
-        showPanel('request-form');
+        showPanel(DOM.requestForm);
     } finally {
         showLoading(false);
     }
@@ -256,7 +263,7 @@ async function checkExistingRequests() {
 // --- UI NAVIGATION AND PANEL MANAGEMENT ---
 
 function showPanel(panelId, clear=true) {
-    document.getElementById("loading").style.display = 'none';
+    document.getElementById(DOM.loading).style.display = 'none';
     document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
     const panel = document.getElementById(panelId);
     if (panel) {
@@ -264,7 +271,7 @@ function showPanel(panelId, clear=true) {
         
         // Call toggleReportsRequestedField when showing the request form
         // to ensure the Reports Requested field is properly initialized
-        if (panelId === 'request-form') {
+        if (panelId === DOM.requestForm) {
             toggleReportsRequestedField();
         }
     }
@@ -276,7 +283,7 @@ function showPanel(panelId, clear=true) {
 }
 
 function showRequestsPanel(requests) {
-    const container = document.getElementById('request-list-container');
+    const container = document.getElementById(DOM.requestListContainer);
     container.innerHTML = ''; // Clear previous list
     
     // Clear any lingering error messages when showing the list
@@ -378,52 +385,26 @@ function showRequestsPanel(requests) {
             }
         });
         
-        showPanel('request-list-panel', false);
+        showPanel(DOM.requestListPanel, false);
     } else {
         loadEmailData();
-        showPanel('request-form');
+        showPanel(DOM.requestForm);
     }
 }
 
 function showUpdateForm() {
     clearMessages(); // Clear any previous error messages
     
-    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
-    if (!selectedRadio) {
+    const selectedRequest = getSelectedRequest();
+    if (!selectedRequest) {
         showError("Please select a request to update.");
         return;
     }
     
-    const selectedId = selectedRadio.value;
-    console.log("Selected ID for update:", selectedId, "type:", typeof selectedId);
-    
-    // CRITICAL DEBUG: Dump all the IDs in the existingRequests array for comparison
-    console.log("All request IDs in memory:", existingRequests.map(r => {
-        const id = r.ID !== undefined ? r.ID : r.Id;
-        return {id: id, type: typeof id};
-    }));
-    
-    // FIX: Use a more flexible comparison that handles number vs string issues
-    const selectedRequest = existingRequests.find(r => {
-        // Get ID regardless of case (ID or Id)
-        const rId = r.ID !== undefined ? r.ID : r.Id;
-        
-        // Debug output for troubleshooting
-        console.log(`Comparing request ID ${rId} (${typeof rId}) with selected ${selectedId} (${typeof selectedId})`);
-        
-        // Convert both to strings for comparison (handles both numeric and string IDs)
-        return String(rId) === String(selectedId);
-    });
-    
     console.log("Found selected request:", selectedRequest);
     
-    if (!selectedRequest) {
-        showError("Could not find the selected request.");
-        return;
-    }
-
     // Display the request type
-    document.getElementById('update-request-type').textContent = selectedRequest.RequestType || "Unknown";
+    document.getElementById(DOM.updateRequestType).textContent = selectedRequest.RequestType || "Unknown";
 
     // FIX: Handle RequestStatus properly for the dropdown
     let statusValue = "";
@@ -436,8 +417,8 @@ function showUpdateForm() {
     }
     
     // Pre-populate the update form
-    document.getElementById('update-status').value = statusValue;
-    document.getElementById('update-notes').value = selectedRequest.Notes || '';
+    document.getElementById(DOM.updateStatus).value = statusValue;
+    document.getElementById(DOM.updateNotes).value = selectedRequest.Notes || '';
     
     // Add this code to set the priority value
     let priorityValue = "Medium"; // Default value
@@ -448,7 +429,7 @@ function showUpdateForm() {
             priorityValue = selectedRequest.Priority.Value;
         }
     }
-    document.getElementById('update-priority').value = priorityValue;
+    document.getElementById(DOM.updatePriority).value = priorityValue;
     
     // FIX: Handle ReportLink from SharePoint format
     let reportUrl = "";
@@ -460,18 +441,18 @@ function showUpdateForm() {
         }
     }
     
-    document.getElementById('report-url').value = reportUrl;
+    document.getElementById(DOM.reportUrl).value = reportUrl;
     toggleReportUrlField(); // Show/hide report URL field based on status
 
-    showPanel('update-form-panel');
+    showPanel(DOM.updateFormPanel);
 }
 
 // --- FORM SUBMISSION LOGIC (CREATE & UPDATE) ---
 
 async function submitNewRequest() {
     // Validation
-    const requestType = document.getElementById("requestType").value;
-    const status = document.getElementById("status").value;
+    const requestType = document.getElementById(DOM.requestType).value;
+    const status = document.getElementById(DOM.status).value;
     if (!requestType || !status) {
         showError("Request Type and Status are required.");
         return;
@@ -483,16 +464,16 @@ async function submitNewRequest() {
         const emailBody = await getBodyAsText();
         
         const payload = {
-            subject: document.getElementById("subject").value,
-            senderName: document.getElementById("senderName").value,
-            senderEmail: document.getElementById("senderEmail").value,
+            subject: document.getElementById(DOM.subject).value,
+            senderName: document.getElementById(DOM.senderName).value,
+            senderEmail: document.getElementById(DOM.senderEmail).value,
             sentDate: currentItem.dateTimeCreated ? new Date(currentItem.dateTimeCreated).toISOString() : null,
             requestType: requestType,
-            reportsRequested: parseInt(document.getElementById("reportsRequested").value, 10) || null,
+            reportsRequested: parseInt(document.getElementById(DOM.reportsRequested).value, 10) || null,
             requestStatus: status,
-            notes: document.getElementById("notes").value || "",
-            priority: document.getElementById("priority").value,
-            dueDate: document.getElementById("dueDate").value || null,
+            notes: document.getElementById(DOM.notes).value || "",
+            priority: document.getElementById(DOM.priority).value,
+            dueDate: document.getElementById(DOM.dueDate).value || null,
             trackedDate: new Date().toISOString(),
             // FIX: The payload was missing the required 'assignedTo' field.
             // The schema also includes 'trackedBy', so we will send both for completeness.
@@ -547,44 +528,40 @@ async function submitNewRequest() {
         // Display the specific error message to the user.
         showError(error.message);
         // Keep the form visible so the user can try again without re-entering data.
-        showPanel('request-form');
+        showPanel(DOM.requestForm);
     }
 }
 
 async function submitUpdate() {
-    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
-    if (!selectedRadio) {
+    const selectedRequest = getSelectedRequest();
+    if (!selectedRequest) {
         showError("Please select a request to update.");
         return;
     }
-    const selectedId = selectedRadio.value;
+    const selectedId = selectedRequest.ID || selectedRequest.Id;
 
-    const selectedRequest = existingRequests.find(r => {
-        const rId = r.ID !== undefined ? r.ID : r.Id;
-        return String(rId) === String(selectedId);
-    });
-
-    if (!selectedRequest) {
-        showError("Could not find the selected request.");
+    // Ensure selectedId is a valid number before proceeding
+    if (!selectedId || isNaN(Number(selectedId))) {
+        showError("Invalid request ID. Cannot update this request.");
         return;
     }
 
-    const newStatus = document.getElementById('update-status').value;
-    const reportUrl = document.getElementById('report-url').value;
+    const newStatus = document.getElementById(DOM.updateStatus).value;
+    const reportUrl = document.getElementById(DOM.reportUrl).value;
     const requestType = selectedRequest.RequestType;
-    const priority = document.getElementById('update-priority').value;
+    const priority = document.getElementById(DOM.updatePriority).value;
 
     // VALIDATION: Enforce Report Link requirement before submitting.
     if (requestType === 'Compliance Request' && newStatus === 'Completed' && !reportUrl) {
         showError('A Report Link is required to mark a Compliance Request as Completed.');
-        document.getElementById('report-url').focus(); // Focus the input for user convenience
+        document.getElementById(DOM.reportUrl).focus(); // Focus the input for user convenience
         return; // Stop the submission
     }
 
     showLoading(true, "Submitting update...");
 
     try {
-        const notesValue = document.getElementById('update-notes').value.trim();
+        const notesValue = document.getElementById(DOM.updateNotes).value.trim();
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
@@ -635,13 +612,31 @@ async function submitUpdate() {
         console.error("Update submission error:", error);
         showError(error.message);
         // Show the update form again on error so the user can retry.
-        showPanel('update-form-panel');
+        showPanel(DOM.updateFormPanel);
     } finally {
         showLoading(false);
     }
 }
 
 // --- HELPER FUNCTIONS ---
+
+/**
+ * Finds the selected request from the radio buttons in the list.
+ * @returns {object | null} The request object from existingRequests or null if not found.
+ */
+function getSelectedRequest() {
+    const selectedRadio = document.querySelector('input[name="requestSelection"]:checked');
+    if (!selectedRadio) {
+        return null;
+    }
+    const selectedId = selectedRadio.value;
+
+    // Find the request using a flexible comparison for string/number IDs.
+    return existingRequests.find(r => {
+        const rId = r.ID !== undefined ? r.ID : r.Id;
+        return String(rId) === String(selectedId);
+    }) || null;
+}
 
 function getBodyAsText() {
     // FIX: Return a promise that can be rejected on failure.
@@ -652,15 +647,15 @@ function getBodyAsText() {
             } else {
                 console.error("Failed to get email body:", result.error);
                 // Reject the promise so the main catch block can handle it.
-                reject(new Error("Could not retrieve email body."));
+                reject(new Error("Failed to get email body: " + result.error.message));
             }
         });
     });
 }
 
 function resetForm() {
-    document.getElementById("request-form").reset();
-    document.getElementById("priority").value = "Medium";
+    document.getElementById(DOM.requestForm).reset();
+    // The default value for priority is now set in the HTML markup.
     // FIX: Reload email data to ensure form is correctly populated.
     loadEmailData();
     // Ensure the Reports Requested field is properly set after reset
@@ -680,7 +675,7 @@ function formatDate(dateString, includeTime = false) {
 }
 
 function showLoading(show, message = "Loading...") {
-    const loading = document.getElementById("loading");
+    const loading = document.getElementById(DOM.loading);
     if (show) {
         loading.textContent = message;
         loading.style.display = 'block';
@@ -691,7 +686,7 @@ function showLoading(show, message = "Loading...") {
 }
 
 function showError(message) {
-    const errorElement = document.getElementById("error-message");
+    const errorElement = document.getElementById(DOM.errorMessage);
     errorElement.textContent = message;
     errorElement.style.display = "block";
     errorElement.style.color = "white";
@@ -710,7 +705,7 @@ function showError(message) {
 }
 
 function showSuccess(message) {
-    const successElement = document.getElementById("success-message");
+    const successElement = document.getElementById(DOM.successMessage);
     successElement.textContent = message;
     successElement.style.display = "block";
     successElement.style.color = "white";
@@ -720,13 +715,12 @@ function showSuccess(message) {
     successElement.style.borderRadius = "4px";
     successElement.style.marginBottom = "15px";
     
-    setTimeout(clearMessages, 4000);
+    setTimeout(clearMessages, 6000);
 }
 
 function clearMessages() {
-    const errorElem = document.getElementById("error-message");
-    const successMsg = document.getElementById("success-message");
-    if (successMsg) successMsg.style.display = "none";
-    const successElem = document.getElementById("success-message");
+    const errorElem = document.getElementById(DOM.errorMessage);
+    const successElem = document.getElementById(DOM.successMessage);
+    if (errorElem) errorElem.style.display = "none";
     if (successElem) successElem.style.display = "none";
 }

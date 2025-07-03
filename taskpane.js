@@ -169,66 +169,60 @@ function loadEmailData() {
 async function checkExistingRequests() {
     showLoading(true, "Checking for existing requests...");
     const conversationId = currentItem.conversationId;
-    
-    // --- START DIAGNOSTIC LOG ---
-    // This will print the exact ID being sent to Power Automate.
-    // Have your colleague check their browser's developer console (F12) for this value.
     console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
-    // --- END DIAGNOSTIC LOG ---
-    
-    console.log("Looking up requests for conversation ID:", conversationId);
-
-    if (!conversationId) {
-        showError("Could not get conversation ID. Showing new request form.");
-        loadEmailData();
-        showPanel('request-form');
-        return;
-    }
 
     try {
-        console.log("Calling Power Automate with URL:", CONFIG.REQUEST_LOOKUP_URL);
-        
+        // --- Step 1: Primary lookup by Conversation ID ---
+        let lookupPayload = { conversationId: conversationId };
         const response = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ conversationId: conversationId })
+            body: JSON.stringify(lookupPayload)
         });
 
-        console.log("Response status:", response.status, response.statusText);
-
-        if (!response.ok) {
-            let errorText = "";
-            try {
-                errorText = await response.text();
-            } catch (e) {
-                errorText = "Could not read error details";
-            }
-            console.error("Error response body:", errorText);
-            throw new Error(`HTTP error ${response.status}: ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        console.log("Raw response:", responseText);
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
         
-        try {
-            console.log("Response type:", typeof responseText);
-            console.log("Response length:", responseText.length);
+        let potentialRequests = await response.json();
+
+        if (potentialRequests && potentialRequests.length > 0) {
+            // Success! Found a match with the Conversation ID.
+            console.log("Found existing requests by Conversation ID:", potentialRequests);
+            existingRequests = potentialRequests;
+            showRequestsPanel(existingRequests);
+        } else {
+            // --- Step 2: Fallback lookup by properties ---
+            console.log("No match by Conversation ID. Trying fallback lookup by properties.");
             
-            // The response from the simplified "Get items" flow is a clean JSON array.
-            // No complex parsing is needed.
-            existingRequests = responseText ? JSON.parse(responseText) : [];
-            
-            console.log("Processed requests:", existingRequests);
-            
-            if (existingRequests && existingRequests.length > 0) {
-                showRequestsPanel(existingRequests);
+            lookupPayload = {
+                subject: currentItem.subject || "",
+                senderEmail: currentItem.from ? currentItem.from.emailAddress : ""
+            };
+
+            const fallbackResponse = await fetch(CONFIG.REQUEST_LOOKUP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lookupPayload)
+            });
+
+            if (!fallbackResponse.ok) throw new Error(`HTTP error ${fallbackResponse.status} on fallback`);
+
+            potentialRequests = await fallbackResponse.json();
+
+            if (potentialRequests && potentialRequests.length > 0) {
+                // Found potential matches. Ask the user to confirm.
+                console.log("Found potential matches by properties:", potentialRequests);
+                // This is where you would show a new panel asking the user to confirm.
+                // For now, we will log it and proceed to the new request form.
+                // A future enhancement would be to build a "showLinkConfirmationPanel(potentialRequests)" function.
+                console.log("UI ENHANCEMENT: Prompt user to link to one of these requests.");
+                loadEmailData();
+                showPanel('request-form');
             } else {
+                // No matches found by any method. Show the new request form.
+                console.log("No requests found by any method.");
                 loadEmailData();
                 showPanel('request-form');
             }
-        } catch (parseError) {
-            console.error("Failed to parse or process response:", parseError);
-            throw parseError;
         }
     } catch (error) {
         console.error("Error checking for existing requests:", error);

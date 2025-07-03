@@ -328,25 +328,7 @@ function showRequestsPanel(requests, showWithMessages = false) {
         requests = [requests]; // Wrap in array
     }
     
-    // Add a "Create Another Request" button at the top
-    if (requests.length > 0) {
-        const createAnotherBtn = document.createElement('button');
-        createAnotherBtn.textContent = 'Create Another Request';
-        createAnotherBtn.style.backgroundColor = 'var(--stryker-orange)';
-        createAnotherBtn.style.marginBottom = '15px';
-        createAnotherBtn.style.marginTop = '0';
-        
-        createAnotherBtn.onclick = () => {
-            resetForm();
-            showPanel(DOM.requestForm);
-        };
-        
-        // Add the button at the top of the list
-        const btnWrapper = document.createElement('div');
-        btnWrapper.style.textAlign = 'right';
-        btnWrapper.appendChild(createAnotherBtn);
-        container.appendChild(btnWrapper);
-    }
+    // Removed "Create Another Request" button as requested
     
     // Process the requests to ensure the SharePoint complex objects are properly handled
     const processedRequests = requests.map(req => {
@@ -619,11 +601,20 @@ async function submitNewRequest() {
     try {
         const emailBody = await getBodyAsText();
         
-        // Parse priority if it's a numeric string to ensure it's sent as an integer
-        let priorityValue = document.getElementById(DOM.priority).value;
-        if (!isNaN(priorityValue) && priorityValue !== "") {
-            priorityValue = parseInt(priorityValue, 10);
-        }
+        // Create a string-to-integer mapping for priority values
+        const priorityMap = {
+            "High": 1,
+            "Medium": 2,
+            "Low": 3
+        };
+        
+        // Get the selected priority text value
+        const priorityText = document.getElementById(DOM.priority).value;
+        
+        // Convert to numeric value based on the map
+        let priorityValue = priorityMap[priorityText] || 2; // Default to Medium (2) if not found
+        
+        console.log("New request: Converting priority from", priorityText, "to numeric value:", priorityValue);
         
         const payload = {
             subject: document.getElementById(DOM.subject).value,
@@ -647,12 +638,25 @@ async function submitNewRequest() {
         
         console.log("Submitting new request with payload:", payload);
         console.log("InternetMessageId value (capital I):", payload.InternetMessageId);
+        console.log("DATA TYPE CHECK - priority:", typeof payload.priority, payload.priority);
+        console.log("DATA TYPE CHECK - reportsRequested:", typeof payload.reportsRequested, payload.reportsRequested);
+        
+        // Force correct data types by using a specific replacer function
+        const payloadJson = JSON.stringify(payload, (key, value) => {
+            // Force numeric fields to be numbers
+            if (key === 'priority' || key === 'reportsRequested') {
+                return value === null || value === "" ? null : Number(value);
+            }
+            return value;
+        });
+        
+        console.log("Final JSON payload to send:", payloadJson);
         
         // REFACTOR: Using fetch API directly for cleaner code and better error handling.
         const response = await fetch(CONFIG.REQUEST_CREATE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: payloadJson
         });
 
         console.log("Response received from Power Automate:", response);
@@ -861,17 +865,22 @@ async function submitUpdate() {
             console.warn("No InternetMessageId found in request or current item!");
         }
         
-        // Parse priority if it's a numeric value to ensure it's sent as an integer
-        // This handles the case where priority might be "1", "2", "3" instead of 1, 2, 3
-        let priorityValue = priority;
-        if (!isNaN(priority) && priority !== "") {
-            priorityValue = parseInt(priority, 10);
-        }
-
+        // Create a string-to-integer mapping for priority values
+        const priorityMap = {
+            "High": 1,
+            "Medium": 2,
+            "Low": 3
+        };
+        
+        // Convert the priority to a numeric value based on the map
+        let priorityValue = priorityMap[priority] || 2; // Default to Medium (2) if not found
+        
+        console.log("Converting priority from", priority, "to numeric value:", priorityValue);
+        
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
-            // Add priority to payload as an integer if it's numeric
+            // Always use numeric priority value
             priority: priorityValue,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User",
             // Add the InternetMessageId - CRITICAL for Power Automate
@@ -880,6 +889,9 @@ async function submitUpdate() {
         
         // Add some debugging output
         console.log("Update payload with InternetMessageId:", payload);
+        console.log("DATA TYPE CHECK - requestId:", typeof payload.requestId, payload.requestId);
+        console.log("DATA TYPE CHECK - priority:", typeof payload.priority, payload.priority);
+        console.log("DATA TYPE CHECK - requestStatus:", typeof payload.requestStatus, payload.requestStatus);
 
         // Only include the reportUrl if it has a value.
         if (reportUrl) {
@@ -900,11 +912,22 @@ async function submitUpdate() {
 
         console.log("Update payload:", payload);
 
+        // Force correct data types by using a specific replacer function
+        const payloadJson = JSON.stringify(payload, (key, value) => {
+            // Force numeric fields to be numbers
+            if (key === 'requestId' || key === 'priority') {
+                return Number(value); // Ensure it's a number
+            }
+            return value;
+        });
+        
+        console.log("Final JSON payload to send:", payloadJson);
+
         // Using the correct update flow URL
         const response = await fetch(CONFIG.REQUEST_UPDATE_URL, { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload) 
+            body: payloadJson 
         });
 
         console.log("Update response status:", response.status);
@@ -932,6 +955,12 @@ async function submitUpdate() {
                         
                         console.error(`Type mismatch detected in field: ${fieldName}`);
                         console.log("Original payload:", payload);
+                        
+                        // Dump all values with their types for debugging
+                        console.log("PAYLOAD FIELD TYPES:");
+                        Object.entries(payload).forEach(([key, value]) => {
+                            console.log(`Field ${key}: type=${typeof value}, value=${value}`);
+                        });
                         
                         detailedErrorMessage = `Update failed: Type mismatch error in ${fieldName}. The system expected a number but received text.`;
                     }

@@ -357,9 +357,23 @@ function showRequestsPanel(requests, showWithMessages = false) {
             processed.RequestStatus = req.RequestStatus.Value || "New";
         }
         
-        if (req.Priority && typeof req.Priority === 'object') {
-            console.log("Processing Priority:", req.Priority);
-            processed.Priority = req.Priority.Value || "Medium";
+        if (req.Priority) {
+            if (typeof req.Priority === 'object') {
+                console.log("Processing Priority object:", req.Priority);
+                processed.Priority = req.Priority.Value || "Medium";
+            } else if (!isNaN(req.Priority)) {
+                // Convert numeric priority to string equivalent
+                console.log("Converting numeric Priority:", req.Priority);
+                const priorityMap = {
+                    "1": "High",
+                    "2": "Medium", 
+                    "3": "Low"
+                };
+                processed.Priority = priorityMap[String(req.Priority)] || "Medium";
+            } else {
+                // Already a string value, use directly
+                processed.Priority = String(req.Priority);
+            }
         }
         
         if (req.RequestType && typeof req.RequestType === 'object') {
@@ -432,7 +446,25 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 const requestTypeText = String(req.RequestType || "Unknown");
                 const statusText = String(req.RequestStatus || "New");
                 const statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
-                const priorityText = String(req.Priority || "Medium");
+                
+                // Get priority text, ensuring it's one of Low, Medium, High
+                let priorityText;
+                if (req.Priority) {
+                    // If it's a number (1, 2, 3) convert to text
+                    if (!isNaN(req.Priority)) {
+                        const priorityMap = {
+                            "1": "High",
+                            "2": "Medium", 
+                            "3": "Low"
+                        };
+                        priorityText = priorityMap[req.Priority] || String(req.Priority);
+                    } else {
+                        // If it's already text, use it directly
+                        priorityText = String(req.Priority);
+                    }
+                } else {
+                    priorityText = "Medium"; // Default
+                }
                 
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
@@ -515,9 +547,27 @@ function showUpdateForm() {
     let priorityValue = "Medium"; // Default value
     if (selectedRequest.Priority) {
         if (typeof selectedRequest.Priority === 'string') {
-            priorityValue = selectedRequest.Priority;
+            // If already a string, check if it's a number string and convert if needed
+            if (!isNaN(selectedRequest.Priority)) {
+                const priorityMap = {
+                    "1": "High",
+                    "2": "Medium", 
+                    "3": "Low"
+                };
+                priorityValue = priorityMap[selectedRequest.Priority] || selectedRequest.Priority;
+            } else {
+                priorityValue = selectedRequest.Priority;
+            }
         } else if (typeof selectedRequest.Priority === 'object' && selectedRequest.Priority.Value) {
             priorityValue = selectedRequest.Priority.Value;
+        } else if (!isNaN(selectedRequest.Priority)) {
+            // If it's a numeric value, convert to string
+            const priorityMap = {
+                1: "High",
+                2: "Medium", 
+                3: "Low"
+            };
+            priorityValue = priorityMap[selectedRequest.Priority] || "Medium";
         }
     }
     document.getElementById(DOM.updatePriority).value = priorityValue;
@@ -610,20 +660,11 @@ async function submitNewRequest() {
     try {
         const emailBody = await getBodyAsText();
         
-        // Create a mapping for priority values that keeps the values as strings
-        const priorityMap = {
-            "High": "1",
-            "Medium": "2",
-            "Low": "3"
-        };
+        // Get the selected priority text value directly - no mapping needed
+        // According to PowerAutomate-Schema-Types.md, priority must be a string value: "Low", "Medium", or "High"
+        const priorityValue = document.getElementById(DOM.priority).value;
         
-        // Get the selected priority text value
-        const priorityText = document.getElementById(DOM.priority).value;
-        
-        // Convert to the mapped value but keep as string
-        let priorityValue = priorityMap[priorityText] || "2"; // Default to Medium (2) if not found
-        
-        console.log("New request: Converting priority from", priorityText, "to value:", priorityValue);
+        console.log("New request: Using priority directly:", priorityValue);
         
         const payload = {
             subject: document.getElementById(DOM.subject).value,
@@ -850,13 +891,9 @@ async function submitUpdate() {
     const requestType = selectedRequest.RequestType;
     const priorityValue = document.getElementById(DOM.updatePriority).value;
 
-    // Map the priority value to the correct string.
-    const priorityMap = {
-        "1": "Low",
-        "2": "Medium",
-        "3": "High"
-    };
-    const priority = priorityMap[priorityValue] || priorityValue; // Fallback to original value if not in map
+    // Priority value from dropdown is already the correct text value (Low, Medium, High)
+    // No mapping needed as we're already using the correct string values in the HTML
+    const priority = priorityValue; // Use the value directly from the dropdown
 
 
     // VALIDATION: Enforce Report Link requirement before submitting.
@@ -888,7 +925,7 @@ async function submitUpdate() {
         // Power Automate expects priority as a string with values "Low", "Medium", "High"
         // No mapping needed - we'll use the original string values
         
-        console.log("Using priority value directly:", priority);
+        console.log("Using text priority value directly:", priority);
         
         const payload = {
             // Keep requestId as a number as Power Automate expects an integer

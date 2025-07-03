@@ -389,6 +389,10 @@ function showRequestsPanel(requests, showWithMessages = false) {
             infoDiv.style.marginBottom = '15px';
             infoDiv.innerHTML = `
                 <div><strong>⚠️ Some requests are still being processed</strong></div>
+                <div style="margin-top: 5px;">
+                    New requests take a moment to be fully registered. 
+                    Click "Refresh List" to update with actual IDs before updating.
+                </div>
                 <div style="margin-top: 8px;">
                     <button id="special-refresh-btn" style="margin-top: 0;">Refresh List</button>
                 </div>
@@ -428,13 +432,8 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 const requestTypeText = String(req.RequestType || "Unknown");
                 const statusText = String(req.RequestStatus || "New");
                 const statusClass = statusText.toLowerCase().replace(/\s+/g, '-');
+                const priorityText = String(req.Priority || "Medium");
                 
-                // Convert numeric priority to text for display
-                let priorityText = String(req.Priority || "Medium");
-                if (priorityText === "1") priorityText = "High";
-                else if (priorityText === "2") priorityText = "Medium";
-                else if (priorityText === "3") priorityText = "Low";
-
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
@@ -849,7 +848,16 @@ async function submitUpdate() {
     const newStatus = document.getElementById(DOM.updateStatus).value;
     const reportUrl = document.getElementById(DOM.reportUrl).value;
     const requestType = selectedRequest.RequestType;
-    const priority = document.getElementById(DOM.updatePriority).value;
+    const priorityValue = document.getElementById(DOM.updatePriority).value;
+
+    // Map the priority value to the correct string.
+    const priorityMap = {
+        "1": "Low",
+        "2": "Medium",
+        "3": "High"
+    };
+    const priority = priorityMap[priorityValue] || priorityValue; // Fallback to original value if not in map
+
 
     // VALIDATION: Enforce Report Link requirement before submitting.
     if (requestType === 'Compliance Request' && newStatus === 'Completed' && !reportUrl) {

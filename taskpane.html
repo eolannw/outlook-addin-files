@@ -228,7 +228,7 @@
     <form id="request-form" class="panel">
         <div class="form-group">
             <label for="subject">Subject</label>
-            <input type="text" id="subject" readonly />
+            <input type="text" id="subject" readonly tabindex="-1" />
         </div>
 
         <div class="form-group">
@@ -260,7 +260,7 @@
 
         <div class="form-group" id="reports-requested-group" style="display:none;">
             <label for="reportsRequested">Reports Requested</label>
-            <input type="number" id="reportsRequested" placeholder="Enter a number" />
+            <input type="number" id="reportsRequested" placeholder="Enter a number" min="0" />
         </div>
 
         <div class="form-group">
@@ -340,8 +340,8 @@
         <div class="form-group">
             <label for="update-priority">Priority</label>
             <select id="update-priority">
-                <option value="High">High</option>
                 <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
                 <option value="Low">Low</option>
             </select>
         </div>
@@ -357,7 +357,7 @@
     </form>
 
     <!-- Load the secret configuration file FIRST -->
-    <script src="config.js"></script>
+    <script src="config.js" onerror="console.error('config.js failed to load. Some features may not work.');"></script>
     <!-- Load the main application logic SECOND -->
     <script src="taskpane.js"></script>
 </body>

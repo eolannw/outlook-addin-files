@@ -170,6 +170,12 @@ async function checkExistingRequests() {
     showLoading(true, "Checking for existing requests...");
     const conversationId = currentItem.conversationId;
     
+    // --- START DIAGNOSTIC LOG ---
+    // This will print the exact ID being sent to Power Automate.
+    // Have your colleague check their browser's developer console (F12) for this value.
+    console.log("CRITICAL_DEBUG: Conversation ID for this email item is:", conversationId);
+    // --- END DIAGNOSTIC LOG ---
+    
     console.log("Looking up requests for conversation ID:", conversationId);
 
     if (!conversationId) {
@@ -207,40 +213,10 @@ async function checkExistingRequests() {
         try {
             console.log("Response type:", typeof responseText);
             console.log("Response length:", responseText.length);
-            console.log("First 100 chars:", responseText.substring(0, 100));
             
-            const rawRequests = responseText ? JSON.parse(responseText) : [];
-            
-            // ENHANCED PARSING: Deeply process the SharePoint complex objects
-            existingRequests = rawRequests.map(req => {
-                const processed = { ...req };
-                
-                // Process ALL fields that might be complex objects
-                Object.keys(req).forEach(key => {
-                    if (req[key] && typeof req[key] === 'object' && req[key].Value !== undefined) {
-                        console.log(`Converting complex object in field ${key}:`, req[key]);
-                        processed[key] = req[key].Value;
-                    }
-                });
-                
-                // Double-check the critical fields
-                if (processed.RequestStatus && typeof processed.RequestStatus === 'object') {
-                    console.log("Force converting RequestStatus:", processed.RequestStatus);
-                    processed.RequestStatus = processed.RequestStatus.Value || String(processed.RequestStatus);
-                }
-                
-                if (processed.Priority && typeof processed.Priority === 'object') {
-                    console.log("Force converting Priority:", processed.Priority);
-                    processed.Priority = processed.Priority.Value || String(processed.Priority);
-                }
-                
-                if (processed.RequestType && typeof processed.RequestType === 'object') {
-                    console.log("Force converting RequestType:", processed.RequestType);
-                    processed.RequestType = processed.RequestType.Value || String(processed.RequestType);
-                }
-                
-                return processed;
-            });
+            // The response from the simplified "Get items" flow is a clean JSON array.
+            // No complex parsing is needed.
+            existingRequests = responseText ? JSON.parse(responseText) : [];
             
             console.log("Processed requests:", existingRequests);
             

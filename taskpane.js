@@ -96,7 +96,7 @@ function toggleReportsRequestedField() {
     const reportsGroup = document.getElementById("reports-requested-group");
     const reportsInput = document.getElementById("reportsRequested");
 
-    if (requestType === "Compliance Request" || requestType === "Deal Reporting") {
+    if (requestType === "Compliance Request") {
         reportsGroup.style.display = "block";
         reportsInput.value = 1;
         reportsInput.disabled = false;
@@ -116,6 +116,8 @@ function populateDropdowns() {
         "Contract Termination",
         "Oracle Modification",
         "Deal Reporting",
+        "Process Improvement",
+        "Data Request",
         "Other"
     ];
     const statuses = [
@@ -450,6 +452,17 @@ function showUpdateForm() {
     document.getElementById('update-status').value = statusValue;
     document.getElementById('update-notes').value = selectedRequest.Notes || '';
     
+    // Add this code to set the priority value
+    let priorityValue = "Medium"; // Default value
+    if (selectedRequest.Priority) {
+        if (typeof selectedRequest.Priority === 'string') {
+            priorityValue = selectedRequest.Priority;
+        } else if (typeof selectedRequest.Priority === 'object' && selectedRequest.Priority.Value) {
+            priorityValue = selectedRequest.Priority.Value;
+        }
+    }
+    document.getElementById('update-priority').value = priorityValue;
+    
     // FIX: Handle ReportLink from SharePoint format
     let reportUrl = "";
     if (selectedRequest.ReportLink) {
@@ -572,6 +585,7 @@ async function submitUpdate() {
     const newStatus = document.getElementById('update-status').value;
     const reportUrl = document.getElementById('report-url').value;
     const requestType = selectedRequest.RequestType;
+    const priority = document.getElementById('update-priority').value;
 
     // VALIDATION: Enforce Report Link requirement before submitting.
     if (requestType === 'Compliance Request' && newStatus === 'Completed' && !reportUrl) {
@@ -587,6 +601,8 @@ async function submitUpdate() {
         const payload = {
             requestId: parseInt(selectedId, 10),
             requestStatus: newStatus,
+            // Add priority to payload
+            priority: priority,
             updatedBy: currentUser ? currentUser.emailAddress : "Unknown User"
         };
 

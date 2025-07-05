@@ -433,7 +433,7 @@ function showRequestsPanel(requests, showWithMessages = false) {
                     (req.ID !== undefined ? req.ID : req.Id) : `unknown-${index}`;
                 
                 // Check if this is a placeholder ID
-                const isPlaceholder = String(reqId).startsWith('new-');
+                const isPlaceholder = String(reqId).startsWith('new');
                 
                 if (isPlaceholder) {
                     itemDiv.style.opacity = "0.7";
@@ -469,6 +469,12 @@ function showRequestsPanel(requests, showWithMessages = false) {
                 // Format date safely
                 const trackedDate = (req && req.TrackedDate) ? formatDate(req.TrackedDate) : 'Unknown Date';
                 
+                // Calculate TimeToResolution if status is Completed
+                let timeToResolutionText = "";
+                if (req.RequestStatus === "Completed" && req.TrackedDate && req.CompletionDate) {
+                    timeToResolutionText = calculateTimeToResolution(req.TrackedDate, req.CompletionDate);
+                }
+                
                 // Build the HTML with safe values and new status badges
                 let innerHTML = `
                     <input type="radio" name="requestSelection" value="${reqId}" id="${uniqueId}" ${isPlaceholder ? 'disabled' : ''}>
@@ -483,6 +489,8 @@ function showRequestsPanel(requests, showWithMessages = false) {
                         <div>
                             <small>Created: ${trackedDate} | Priority: ${priorityText}</small>
                         </div>
+                        ${timeToResolutionText ? `<div><small>Time to Resolution: ${timeToResolutionText}</small></div>` : ''}
+
                 `;
                 
                 if (isPlaceholder) {
@@ -940,6 +948,12 @@ async function submitUpdate() {
             InternetMessageId: String(internetMessageId || "")
         };
         
+        // If the status is being changed to Completed, add the completion date
+        if (newStatus === 'Completed') {
+            // Add the current timestamp as the completion date
+            payload.completionDate = new Date().toISOString();
+        }
+
         // Add some debugging output
         console.log("Update payload with InternetMessageId:", payload);
         console.log("DATA TYPE CHECK - requestId:", typeof payload.requestId, payload.requestId);
@@ -1303,14 +1317,6 @@ function showError(message) {
                             message.includes('already exists for this email');
     
     // Support HTML content in error messages
-    if (message.includes('<p>') || message.includes('<div>')) {
-        errorElement.innerHTML = message; // Use innerHTML for HTML content
-    } else {
-        errorElement.textContent = message; // Use textContent for plain text (safer)
-    }
-    
-    errorElement.style.display = "block";
-    errorElement.style.color = "white";
     errorElement.style.padding = "12px";
     
     // Use different styling for duplicate errors (orange warning) vs other errors (red)
@@ -1460,4 +1466,37 @@ function highlightDuplicateRequest(requestType) {
             }
         }
     });
+}
+
+/**
+ * Calculates time difference between two dates with precision to minutes
+ * @param {string|Date} startDate - The start date/time
+ * @param {string|Date} endDate - The end date/time
+ * @returns {string} Formatted time difference (e.g., "22.5 hours" or "2.2 days")
+ */
+function calculateTimeToResolution(startDate, endDate) {
+    if (!startDate || !endDate) return "";
+    
+    try {
+        // Convert strings to Date objects if needed
+        const start = startDate instanceof Date ? startDate : new Date(startDate);
+        const end = endDate instanceof Date ? endDate : new Date(endDate);
+        
+        // Calculate difference in milliseconds
+        const diffMs = end.getTime() - start.getTime();
+        
+        // Convert to hours with 1 decimal precision
+        const diffHours = (diffMs / (1000 * 60 * 60)).toFixed(1);
+        
+        // Format appropriately based on duration
+        if (diffHours >= 24) {
+            const diffDays = (diffHours / 24).toFixed(1);
+            return `${diffDays} days`;
+        } else {
+            return `${diffHours} hours`;
+        }
+    } catch (e) {
+        console.error("Error calculating time to resolution:", e);
+        return "";
+    }
 }

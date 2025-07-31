@@ -155,7 +155,7 @@ function toggleReportUrlField() {
     // Show the Report Link field only when the status is 'Completed' AND request type is 'Compliance Request'
     if (status === 'Completed' && requestType === 'Compliance Request') {
         reportUrlGroup.style.display = 'block';
-        reportUrlInput.setAttribute('required', 'true');
+        // Removed required attribute - report URL is now optional
     } else {
         // Hide the field and remove the required attribute for all other cases
         reportUrlGroup.style.display = 'none';

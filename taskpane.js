@@ -1041,14 +1041,6 @@ async function submitUpdate() {
     // No mapping needed as we're already using the correct string values in the HTML
     const priority = priorityValue; // Use the value directly from the dropdown
 
-
-    // VALIDATION: Enforce Report Link requirement before submitting.
-    if (requestType === 'Compliance Request' && newStatus === 'Completed' && !reportUrl) {
-        showError('A Report Link is required to mark a Compliance Request as Completed.');
-        document.getElementById(DOM.reportUrl).focus(); // Focus the input for user convenience
-        return; // Stop the submission
-    }
-
     showLoading(true, "Submitting update...");
 
     try {

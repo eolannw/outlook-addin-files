@@ -57,6 +57,14 @@
             border-radius: 4px;
         }
         
+        /* Gray out read-only fields */
+        input[readonly] {
+            background-color: #f5f5f5;
+            color: #666;
+            border-color: #ddd;
+            cursor: not-allowed;
+        }
+        
         textarea {
             resize: vertical;
             height: 100px;

@@ -5,967 +5,458 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <title>Compliance Request</title>
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
     <!-- Office JavaScript API -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     
     <style>
-        /* shadcn/ui Design System with Stryker Branding */
+        /* Stryker branding colors */
         :root {
-            /* Brand Colors */
-            --stryker-orange: #ff9e18;
+            --stryker-orange: #ff9e18; /* Updated orange color */
             --stryker-blue: #0077C8;
-            
-            /* Color System */
-            --background: 0 0% 100%;
-            --foreground: 222.2 84% 4.9%;
-            --card: 0 0% 100%;
-            --card-foreground: 222.2 84% 4.9%;
-            --popover: 0 0% 100%;
-            --popover-foreground: 222.2 84% 4.9%;
-            --primary: 31 82% 54%; /* Stryker Orange */
-            --primary-foreground: 210 40% 98%;
-            --secondary: 210 40% 96%;
-            --secondary-foreground: 222.2 84% 4.9%;
-            --muted: 210 40% 96%;
-            --muted-foreground: 215.4 16.3% 46.9%;
-            --accent: 210 40% 96%;
-            --accent-foreground: 222.2 84% 4.9%;
-            --destructive: 0 84.2% 60.2%;
-            --destructive-foreground: 210 40% 98%;
-            --border: 214.3 31.8% 91.4%;
-            --input: 214.3 31.8% 91.4%;
-            --ring: 31 82% 54%; /* Stryker Orange */
-            --radius: 0.5rem;
-            
-            /* Typography Scale */
-            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            
-            /* Spacing Scale */
-            --space-1: 0.25rem;
-            --space-2: 0.5rem;
-            --space-3: 0.75rem;
-            --space-4: 1rem;
-            --space-5: 1.25rem;
-            --space-6: 1.5rem;
-            --space-8: 2rem;
-            --space-10: 2.5rem;
-            --space-12: 3rem;
-            --space-16: 4rem;
-            --space-20: 5rem;
-            
-            /* Shadow Scale */
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-
-        * {
-            border-color: hsl(var(--border));
         }
 
         body {
-            background-color: hsl(var(--background));
-            color: hsl(var(--foreground));
-            font-family: var(--font-sans);
-            font-feature-settings: "rlig" 1, "calt" 1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: var(--space-6);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            padding: 20px;
         }
-
-        /* Typography */
-        h1, h2, h3, h4, h5, h6 {
-            color: hsl(var(--foreground));
-            font-weight: 600;
-            line-height: 1.25;
-            letter-spacing: -0.025em;
-        }
-
+        
         h1 {
-            font-size: 1.875rem;
-            font-weight: 700;
             color: var(--stryker-orange);
-            margin: 0 0 var(--space-2) 0;
-            letter-spacing: -0.05em;
+            margin-top: 0;
         }
-
+        
         h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin: 0 0 var(--space-4) 0;
+            font-weight: normal;
+            color: #000;
+            margin-top: -10px;
+            margin-bottom: 20px;
         }
-
-        h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: 0 0 var(--space-3) 0;
+        
+        p.subtitle {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
-
-        p {
-            margin: 0 0 var(--space-4) 0;
-            line-height: 1.7;
-        }
-
-        .subtitle {
-            color: hsl(var(--muted-foreground));
-            font-size: 0.875rem;
-            margin: 0 0 var(--space-8) 0;
-            padding: 0 0 var(--space-4) 0;
-            border-bottom: 1px solid hsl(var(--border));
-        }
-
-        /* Form Components */
+        
         .form-group {
-            margin-bottom: var(--space-6);
+            margin-bottom: 15px;
         }
-
+        
         label {
             display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: var(--space-2);
-            color: hsl(var(--foreground));
-            line-height: 1.5;
+            margin-bottom: 5px;
+            font-weight: 600;
         }
-
-        .required {
-            color: hsl(var(--destructive));
-            margin-left: var(--space-1);
-        }
-
-        /* Input Styles */
+        
         input, select, textarea {
             width: 100%;
-            padding: var(--space-2) var(--space-3);
-            border: 1px solid hsl(var(--input));
-            border-radius: calc(var(--radius) - 2px);
-            background-color: hsl(var(--background));
-            color: hsl(var(--foreground));
-            font-size: 0.875rem;
-            line-height: 1.25;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 8px;
             box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: hsl(var(--ring));
-            box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
-        }
-
-        input:disabled, select:disabled, textarea:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        input[readonly] {
-            background-color: hsl(var(--muted));
-            cursor: default;
-        }
-
+        
         textarea {
             resize: vertical;
-            min-height: 80px;
-            line-height: 1.5;
+            height: 100px;
         }
-
-        /* Button Styles */
+        
         button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-2);
-            white-space: nowrap;
-            border-radius: calc(var(--radius) - 2px);
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            border: 1px solid transparent;
-            padding: var(--space-2) var(--space-4);
-            height: 2.25rem;
-        }
-
-        /* Primary Button */
-        .btn-primary, button:not(.btn-secondary):not(.btn-outline):not(.btn-ghost) {
             background-color: var(--stryker-orange);
-            color: hsl(var(--primary-foreground));
-            box-shadow: var(--shadow-sm);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+            margin-top: 10px;
+            transition: background-color 0.2s;
         }
-
-        .btn-primary:hover, button:not(.btn-secondary):not(.btn-outline):not(.btn-ghost):hover {
-            background-color: hsl(31 82% 48%);
-            box-shadow: var(--shadow);
+        
+        button:hover {
+            background-color: #e06000;
         }
-
-        .btn-primary:active, button:not(.btn-secondary):not(.btn-outline):not(.btn-ghost):active {
-            background-color: hsl(31 82% 44%);
+        
+        .button-secondary {
+            background-color: #f1f1f1;
+            color: #333;
         }
-
-        /* Secondary Button */
-        .btn-secondary {
-            background-color: hsl(var(--secondary));
-            color: hsl(var(--secondary-foreground));
-            border: 1px solid hsl(var(--border));
+        
+        .button-secondary:hover {
+            background-color: #d0d0d0;
         }
-
-        .btn-secondary:hover {
-            background-color: hsl(var(--secondary) / 0.8);
+        
+        .required {
+            color: #d83b01;
         }
-
-        /* Outline Button */
-        .btn-outline {
-            border: 1px solid hsl(var(--border));
-            background-color: transparent;
-            color: hsl(var(--foreground));
-        }
-
-        .btn-outline:hover {
-            background-color: hsl(var(--accent));
-            color: hsl(var(--accent-foreground));
-        }
-
-        /* Ghost Button */
-        .btn-ghost {
-            background-color: transparent;
-            color: hsl(var(--foreground));
-        }
-
-        .btn-ghost:hover {
-            background-color: hsl(var(--accent));
-            color: hsl(var(--accent-foreground));
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        /* Panel Styles */
+        
+        /* --- Enhanced UI Styles --- */
         .panel {
-            display: none;
-            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: none; /* All panels hidden by default */
+            animation: fadeIn 0.5s;
         }
-
-        /* Card Component */
-        .card {
-            border-radius: var(--radius);
-            border: 1px solid hsl(var(--border));
-            background-color: hsl(var(--card));
-            color: hsl(var(--card-foreground));
-            box-shadow: var(--shadow-sm);
-        }
-
-        .card-header {
-            padding: var(--space-6);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2);
-        }
-
-        .card-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            line-height: 1;
-            letter-spacing: -0.025em;
-        }
-
-        .card-title.main-title {
-            font-size: 1.875rem;
-            font-weight: 700;
-            color: var(--stryker-orange);
-            letter-spacing: -0.05em;
-        }
-
-        .card-description {
-            font-size: 0.875rem;
-            color: hsl(var(--muted-foreground));
-        }
-
-        .card-content {
-            padding: var(--space-6);
-            padding-top: 0;
-        }
-
-        .card-footer {
-            padding: var(--space-6);
-            padding-top: 0;
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        /* Request List Item Styles */
+        
         .request-list-item {
-            padding: var(--space-4);
-            margin-bottom: var(--space-3);
-            border: 1px solid hsl(var(--border));
-            border-radius: var(--radius);
-            background-color: hsl(var(--card));
-            color: hsl(var(--card-foreground));
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-3);
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            color: #000000 !important; /* Force black text */
         }
-
+        
+        .request-list-item label {
+            color: #000000 !important; /* Force black text on labels */
+        }
+        
+        .request-list-item small {
+            color: #000000 !important; /* Force black text on small elements */
+            font-weight: 500; /* Make it slightly bolder */
+        }
+        
+        .request-list-item strong {
+            color: #000000 !important; /* Force black text on strong elements */
+        }
+        
         .request-list-item:hover {
-            background-color: hsl(var(--accent));
+            background-color: #f0f0f0;
             border-color: var(--stryker-orange);
-            box-shadow: var(--shadow);
         }
-
+        
         .request-list-item input[type="radio"] {
             width: auto;
-            margin: 0;
-            accent-color: var(--stryker-orange);
+            margin-right: 15px;
         }
-
+        
         .request-list-item-details {
-            flex: 1;
-            min-width: 0;
+            flex-grow: 1;
         }
-
-        .request-list-item label {
-            margin-bottom: var(--space-1);
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .request-list-item small {
-            color: hsl(var(--muted-foreground));
-            font-size: 0.75rem;
-            display: block;
-            margin-top: var(--space-1);
-        }
-
-        .request-list-item strong {
-            font-weight: 600;
-            color: hsl(var(--foreground));
-        }
-
-        /* Badge Component */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            border-radius: calc(var(--radius) / 2);
-            border: 1px solid transparent;
-            padding: 0 var(--space-2);
-            font-size: 0.75rem;
-            font-weight: 500;
-            line-height: 1.5rem;
-            height: 1.5rem;
-            width: fit-content;
-            margin-top: var(--space-1);
-            margin-bottom: var(--space-2);
-        }
-
-        .badge-default {
-            background-color: hsl(var(--secondary));
-            color: hsl(var(--secondary-foreground));
-        }
-
-        .badge-destructive {
-            background-color: hsl(var(--destructive));
-            color: hsl(var(--destructive-foreground));
-        }
-
-        .badge-outline {
-            color: hsl(var(--foreground));
-            border: 1px solid hsl(var(--border));
-        }
-
-        /* Status badges with enhanced colors */
+        
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            border-radius: calc(var(--radius) / 2);
-            padding: 0 var(--space-2);
-            font-size: 0.75rem;
-            font-weight: 500;
-            line-height: 1.5rem;
-            height: 1.5rem;
-            width: fit-content;
-            margin-top: var(--space-1);
-            margin-bottom: var(--space-2);
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
             color: white;
+            margin-top: 4px;
+            margin-bottom: 8px;
         }
 
-        .status-new { 
-            background: linear-gradient(135deg, var(--stryker-orange) 0%, hsl(31 82% 60%) 100%);
+        /* Ensure status badges have enough contrast */
+        .status-badge {
+            color: white !important;
+            font-weight: bold;
         }
-        .status-in-progress { 
-            background: linear-gradient(135deg, var(--stryker-blue) 0%, hsl(202 100% 40%) 100%);
+        
+        .status-new { background-color: var(--stryker-orange); }
+        .status-in-progress { background-color: var(--stryker-blue); }
+        .status-pending-review { background-color: #8764b8; }
+        .status-completed { background-color: #107c10; }
+        .status-on-hold { background-color: #FFC107; color: #333 !important; }
+        .status-cancelled { background-color: #9E9E9E; }
+        .status-unknown { background-color: #757575; }
+
+        .panel-actions {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
         }
-        .status-pending-review { 
-            background: linear-gradient(135deg, #8764b8 0%, #9c7cc7 100%);
-        }
-        .status-completed { 
-            background: linear-gradient(135deg, #107c10 0%, #13a313 100%);
-        }
-        .status-on-hold { 
-            background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%);
-            color: hsl(var(--foreground)) !important;
-        }
-        .status-cancelled { 
-            background: linear-gradient(135deg, #9E9E9E 0%, #BDBDBD 100%);
-        }
-        .status-unknown { 
-            background: linear-gradient(135deg, #757575 0%, #9E9E9E 100%);
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        /* Alert Component */
-        .alert {
-            position: relative;
-            width: 100%;
-            border-radius: var(--radius);
-            border: 1px solid hsl(var(--border));
-            padding: var(--space-4);
-            margin-bottom: var(--space-4);
+        /* Message notifications */
+        #error-message, #success-message {
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            animation: fadeIn 0.5s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             display: none;
         }
-
-        .alert-destructive {
-            border-color: hsl(var(--destructive) / 0.5);
-            color: hsl(var(--destructive));
-            background-color: hsl(var(--destructive) / 0.1);
-        }
-
-        .alert-success {
-            border-color: hsl(142 76% 36% / 0.5);
-            color: hsl(142 76% 36%);
-            background-color: hsl(142 76% 36% / 0.1);
-        }
-
-        /* Message notifications with enhanced styling */
+        
         #error-message {
-            background: linear-gradient(135deg, hsl(var(--destructive)) 0%, hsl(0 84% 50%) 100%);
-            color: hsl(var(--destructive-foreground));
-            padding: var(--space-4);
-            border-radius: var(--radius);
-            margin-bottom: var(--space-4);
-            box-shadow: var(--shadow-md);
-            border: 1px solid hsl(var(--destructive) / 0.2);
-            display: none;
+            background-color: #d32f2f;
+            border: 1px solid #d32f2f;
         }
-
+        
         #success-message {
-            background: linear-gradient(135deg, var(--stryker-orange) 0%, hsl(31 82% 60%) 100%);
-            color: hsl(var(--primary-foreground));
-            padding: var(--space-4);
-            border-radius: var(--radius);
-            margin-bottom: var(--space-4);
-            box-shadow: var(--shadow-md);
-            border: 1px solid hsl(var(--ring) / 0.2);
-            display: none;
+            background-color: var(--stryker-orange);
+            border: 1px solid var(--stryker-orange);
         }
 
         /* Loading indicator */
         #loading {
             text-align: center;
-            padding: var(--space-8);
+            padding: 20px;
             color: var(--stryker-orange);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-2);
+            font-weight: bold;
         }
 
-        /* Separator */
-        .separator {
-            height: 1px;
-            background-color: hsl(var(--border));
-            margin: var(--space-6) 0;
-        }
-
-        hr {
-            height: 1px;
-            background-color: hsl(var(--border));
-            border: none;
-            margin: var(--space-6) 0;
-        }
-
-        /* Enhanced form sections */
-        .form-section {
-            background-color: hsl(var(--card));
-            border: 1px solid hsl(var(--border));
-            border-radius: var(--radius);
-            padding: var(--space-6);
-            margin-bottom: var(--space-6);
-        }
-
-        .form-section-header {
-            margin-bottom: var(--space-4);
-            padding-bottom: var(--space-3);
-            border-bottom: 1px solid hsl(var(--border));
-        }
-
-        .form-section-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--stryker-orange);
-            margin: 0;
-        }
-
-        /* Panel actions */
-        .panel-actions {
-            margin-top: var(--space-8);
-            padding-top: var(--space-6);
-            border-top: 1px solid hsl(var(--border));
-            display: flex;
-            gap: var(--space-2);
-            flex-wrap: wrap;
-        }
-
-        /* Request type display */
-        .request-type-display {
-            background-color: hsl(var(--muted));
-            border: 1px solid hsl(var(--border));
-            border-left: 4px solid var(--stryker-orange);
-            border-radius: var(--radius);
-            padding: var(--space-4);
-            margin-bottom: var(--space-6);
-        }
-
-        /* Error states */
+        /* Error item in request list */
         .request-list-item.error {
-            background-color: hsl(var(--destructive) / 0.1);
-            border-color: hsl(var(--destructive) / 0.5);
-            color: hsl(var(--destructive));
+            background-color: #ffebee;
+            color: #c62828;
+            border-color: #ef9a9a;
         }
 
-        /* Placeholder styles */
+        .request-type-display {
+            margin-bottom: 20px;
+            padding: 8px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid var(--stryker-orange);
+        }
+
+        /* Styles for placeholder requests */
         .request-list-item.placeholder {
             opacity: 0.7;
-            border: 1px dashed hsl(var(--border));
-            background-color: hsl(var(--muted) / 0.3);
+            border: 1px dashed #ccc !important;
+            background-color: #f9f9f9;
         }
-
+        
         .placeholder-badge {
-            background: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
-            color: white;
-            padding: var(--space-1) var(--space-2);
-            border-radius: calc(var(--radius) / 2);
-            font-size: 0.625rem;
-            font-weight: 500;
+            background-color: #ffb74d;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
             display: inline-block;
-            margin-left: var(--space-2);
+            margin-left: 5px;
         }
-
-        /* Processing animation */
+        
         @keyframes processing-pulse {
             0% { opacity: 0.7; }
             50% { opacity: 1; }
             100% { opacity: 0.7; }
         }
-
+        
         .processing-text {
-            color: hsl(31 82% 50%);
+            color: #ff9800;
             font-style: italic;
             animation: processing-pulse 2s infinite;
         }
-
-        /* Duplicate warning */
+        
+        /* Duplicate request warning styles */
         .duplicate-warning {
-            background: linear-gradient(135deg, hsl(38 92% 95%) 0%, hsl(38 92% 92%) 100%);
-            border: 1px solid hsl(38 92% 85%);
-            border-left: 4px solid hsl(38 92% 50%);
-            border-radius: var(--radius);
-            padding: var(--space-4);
-            margin: var(--space-4) 0;
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 0 4px 4px 0;
         }
-
+        
         .duplicate-warning p {
-            margin: var(--space-1) 0;
-            color: hsl(38 92% 30%);
+            margin: 5px 0;
         }
-
+        
         .warning-action-button {
-            background: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 92% 45%) 100%);
+            background-color: #ff9800;
             color: white;
             border: none;
-            padding: var(--space-2) var(--space-4);
-            border-radius: calc(var(--radius) - 2px);
+            padding: 8px 12px;
+            border-radius: 4px;
             cursor: pointer;
-            font-weight: 500;
-            margin-top: var(--space-3);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: var(--shadow-sm);
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background-color 0.2s;
         }
-
+        
         .warning-action-button:hover {
-            background: linear-gradient(135deg, hsl(38 92% 45%) 0%, hsl(38 92% 40%) 100%);
-            box-shadow: var(--shadow);
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Focus states enhancement */
-        input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
-            outline: 2px solid var(--stryker-orange);
-            outline-offset: 2px;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 480px) {
-            body {
-                padding: var(--space-4);
-            }
-            
-            .panel-actions {
-                flex-direction: column;
-            }
-            
-            button {
-                width: 100%;
-                margin-right: 0;
-                margin-bottom: var(--space-2);
-            }
-        }
-
-        /* Utility Classes */
-        .container {
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        .mb-8 {
-            margin-bottom: var(--space-8);
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid hsl(var(--muted));
-            border-radius: 50%;
-            border-top-color: var(--stryker-orange);
-            animation: spin 1s ease-in-out infinite;
-            margin-right: var(--space-2);
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Enhanced loading state */
-        #loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-2);
-            padding: var(--space-8);
-            color: var(--stryker-orange);
-            font-weight: 500;
-        }
-
-        /* Form improvements */
-        .form-section:last-child {
-            margin-bottom: 0;
-        }
-
-        /* Button group spacing */
-        .card-footer {
-            display: flex;
-            gap: var(--space-2);
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .card-footer button {
-            margin: 0;
-        }
-
-        .card-footer button:last-child {
-            margin-right: 0;
-        }
-
-        /* Enhanced focus ring */
-        .card:focus-within {
-            box-shadow: 0 0 0 2px var(--stryker-orange);
-        }
-
-        /* Improved select styling */
-        select {
-            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-            background-position: right var(--space-2) center;
-            background-repeat: no-repeat;
-            background-size: 1rem;
-            padding-right: var(--space-8);
-            appearance: none;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Better readonly styling */
-        input[readonly] {
-            background-color: hsl(var(--muted));
-            border-color: hsl(var(--border));
-            color: hsl(var(--muted-foreground));
-        }
-
-        /* Status-specific styling for better UX */
-        .status-display {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-2);
-        }
-
-        /* Enhanced card hover effects */
-        .card:hover {
-            box-shadow: var(--shadow-md);
-            transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #f57c00;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div id="loading">
-            <div class="loading-spinner"></div>
-            Loading email data...
+    <h1>Track Request</h1>
+    <p class="subtitle">Log this email request to SharePoint</p>
+    
+    <div id="loading">Loading email data...</div>
+    
+    <div id="error-message" class="error"></div>
+    <div id="success-message" class="success"></div>
+    
+    <!-- Panel 1: New Request Form (existing form) -->
+    <form id="request-form" class="panel">
+        <div class="form-group">
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" readonly tabindex="-1" />
         </div>
-        
-        <div id="error-message" class="alert alert-destructive"></div>
-        <div id="success-message" class="alert alert-success"></div>
-        
-        <!-- Panel 1: New Request Form -->
-        <div id="request-form" class="panel">
-            <div class="card">
-                <div class="card-header">
-                    <h1 class="card-title main-title">Track Request</h1>
-                    <p class="card-description">Log this email request to SharePoint</p>
-                </div>
-                <div class="card-content">
-                    <form>
-                        <!-- Email Information Section -->
-                        <div class="form-section">
-                            <div class="form-section-header">
-                                <h3 class="form-section-title">Email Information</h3>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="subject">Subject</label>
-                                <input type="text" id="subject" readonly tabindex="-1" />
-                            </div>
 
-                            <div class="form-group">
-                                <label for="senderName">Sender Name</label>
-                                <input type="text" id="senderName" readonly />
-                            </div>
+        <div class="form-group">
+            <label for="senderName">Sender Name</label>
+            <input type="text" id="senderName" readonly />
+        </div>
 
-                            <div class="form-group">
-                                <label for="senderEmail">Sender Email</label>
-                                <input type="text" id="senderEmail" readonly />
-                            </div>
+        <div class="form-group">
+            <label for="senderEmail">Sender Email</label>
+            <input type="text" id="senderEmail" readonly />
+        </div>
 
-                            <div class="form-group">
-                                <label for="sentDate">Sent Date</label>
-                                <input type="text" id="sentDate" readonly />
-                            </div>
-                        </div>
+        <div class="form-group">
+            <label for="sentDate">Sent Date</label>
+            <input type="text" id="sentDate" readonly />
+        </div>
 
-                        <!-- Request Details Section -->
-                        <div class="form-section">
-                            <div class="form-section-header">
-                                <h3 class="form-section-title">Request Details</h3>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="requestType">Request Type <span class="required">*</span></label>
-                                <select id="requestType" required>
-                                    <!-- Options are now populated dynamically by taskpane.js -->
-                                </select>
-                            </div>
+        <div class="form-group">
+            <label for="requestType">Request Type <span class="required">*</span></label>
+            <select id="requestType" required>
+                <!-- Options are now populated dynamically by taskpane.js -->
+            </select>
+        </div>
 
-                            <div class="form-group" id="reports-requested-group" style="display:none;">
-                                <label for="reportsRequested">Reports Requested</label>
-                                <input type="number" id="reportsRequested" placeholder="Enter a number" min="0" />
-                            </div>
+        <div class="form-group" id="reports-requested-group" style="display:none;">
+            <label for="reportsRequested">Reports Requested</label>
+            <input type="number" id="reportsRequested" placeholder="Enter a number" min="0" />
+        </div>
 
-                            <!-- Contract Correction Details -->
-                            <div class="form-group" id="contract-correction-group" style="display:none;">
-                                <div class="form-section">
-                                    <div class="form-section-header">
-                                        <h3 class="form-section-title">Contract Correction Details</h3>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="contractNumber">Contract Number <span class="required">*</span></label>
-                                        <input type="text" id="contractNumber" placeholder="Enter contract number" />
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="assignedFinancialAnalyst">Assigned Financial Analyst <span class="required">*</span></label>
-                                        <input type="text" id="assignedFinancialAnalyst" placeholder="Enter analyst name" />
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="contractCorrect">Contract Correct <span class="required">*</span></label>
-                                        <select id="contractCorrect" required>
-                                            <option value="">Select...</option>
-                                            <option value="YES">YES</option>
-                                            <option value="NO">NO</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="salesforceCorrect">Salesforce Correct <span class="required">*</span></label>
-                                        <select id="salesforceCorrect" required>
-                                            <option value="">Select...</option>
-                                            <option value="YES">YES</option>
-                                            <option value="NO">NO</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label for="oracleCorrect">Oracle Correct <span class="required">*</span></label>
-                                        <select id="oracleCorrect" required>
-                                            <option value="">Select...</option>
-                                            <option value="YES">YES</option>
-                                            <option value="NO">NO</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-group" style="display:none;">
-                                        <label for="modifierList">Modifier List</label>
-                                        <select id="modifierList">
-                                            <option value="">Select...</option>
-                                            <option value="YES">YES</option>
-                                            <option value="NO">NO</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-group" style="display:none;">
-                                        <label for="flexForm">Flex Form</label>
-                                        <select id="flexForm">
-                                            <option value="">Select...</option>
-                                            <option value="YES">YES</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="status">Request Status <span class="required">*</span></label>
-                                <select id="status" required>
-                                    <!-- Options are now populated dynamically by taskpane.js -->
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="notes">Additional Notes</label>
-                                <textarea id="notes" placeholder="Enter any additional notes about this request..."></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Optional Settings Section -->
-                        <div class="form-section">
-                            <div class="form-section-header">
-                                <h3 class="form-section-title">Optional Settings</h3>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="priority">Priority</label>
-                                <select id="priority">
-                                    <!-- Options populated by JS -->
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="dueDate">Due Date (Optional)</label>
-                                <input type="date" id="dueDate" />
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer">
-                    <button id="submit-btn" type="button" class="btn-primary">Submit to SharePoint</button>
-                    <button id="reset-btn" type="button" class="btn-secondary">Reset Form</button>
-                </div>
+        <div class="form-group" id="contract-correction-group" style="display:none;">
+            <h3 style="color: var(--stryker-orange); margin-bottom: 15px;">Contract Correction Details</h3>
+            
+            <div class="form-group">
+                <label for="contractNumber">Contract Number <span class="required">*</span></label>
+                <input type="text" id="contractNumber" placeholder="Enter contract number" />
             </div>
-        </div>
-        <!-- Panel 2: Existing Requests List -->
-        <div id="request-list-panel" class="panel">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Existing Requests</h2>
-                    <p class="card-description">The following requests have been logged for this conversation</p>
-                </div>
-                <div class="card-content">
-                    <div id="request-list-container">
-                        <!-- Request items will be dynamically inserted here -->
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <button id="update-selected-btn" type="button" class="btn-primary">Update Selected</button>
-                    <button id="create-new-btn" type="button" class="btn-secondary">Create New Request</button>
-                    <button id="refresh-list-btn" type="button" class="btn-outline">Refresh</button>
-                </div>
+            
+            <div class="form-group">
+                <label for="assignedFinancialAnalyst">Assigned Financial Analyst <span class="required">*</span></label>
+                <input type="text" id="assignedFinancialAnalyst" placeholder="Enter analyst name" />
+            </div>
+            
+            <div class="form-group">
+                <label for="contractCorrect">Contract Correct <span class="required">*</span></label>
+                <select id="contractCorrect" required>
+                    <option value="">Select...</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="salesforceCorrect">Salesforce Correct <span class="required">*</span></label>
+                <select id="salesforceCorrect" required>
+                    <option value="">Select...</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="oracleCorrect">Oracle Correct <span class="required">*</span></label>
+                <select id="oracleCorrect" required>
+                    <option value="">Select...</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="display:none;">
+                <label for="modifierList">Modifier List</label>
+                <select id="modifierList">
+                    <option value="">Select...</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="display:none;">
+                <label for="flexForm">Flex Form</label>
+                <select id="flexForm">
+                    <option value="">Select...</option>
+                    <option value="YES">YES</option>
+                    <option value="NO">NO</option>
+                </select>
             </div>
         </div>
 
-        <!-- Panel 3: Update Request Form -->
-        <div id="update-form-panel" class="panel">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Update Request</h2>
-                    <p class="card-description">Modify the selected request</p>
-                </div>
-                <div class="card-content">
-                    <form>
-                        <div class="request-type-display">
-                            <strong>Request Type:</strong> <span id="update-request-type"></span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="update-status">Request Status <span class="required">*</span></label>
-                            <select id="update-status" required>
-                                <!-- Options are now populated dynamically by taskpane.js -->
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="update-notes">Additional Notes</label>
-                            <textarea id="update-notes" placeholder="Enter any additional notes..."></textarea>
-                        </div>
+        <div class="form-group">
+            <label for="status">Request Status <span class="required">*</span></label>
+            <select id="status" required>
+                <!-- Options are now populated dynamically by taskpane.js -->
+            </select>
+        </div>
 
-                        <div class="form-group">
-                            <label for="update-priority">Priority</label>
-                            <select id="update-priority">
-                                <!-- Options populated by JS -->
-                            </select>
-                        </div>
+        <div class="form-group">
+            <label for="notes">Additional Notes</label>
+            <textarea id="notes" placeholder="Enter any additional notes about this request..."></textarea>
+        </div>
 
-                        <div class="form-group" id="report-url-group" style="display:none;">
-                            <label for="report-url">Report Link (URL)</label>
-                            <input type="url" id="report-url" placeholder="https://..."/>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer">
-                    <button id="submit-update-btn" type="button" class="btn-primary">Submit Update</button>
-                    <button id="back-to-list-btn" type="button" class="btn-secondary">Back to List</button>
-                </div>
-            </div>
+        <hr style="margin: 20px 0; border: 1px solid #eee;">
+
+        <div class="form-group">
+            <label for="priority">Priority</label>
+            <select id="priority">
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="dueDate">Due Date (Optional)</label>
+            <input type="date" id="dueDate" />
+        </div>
+
+        <button id="submit-btn" type="button">Submit to SharePoint</button>
+        <button id="reset-btn" type="button" class="button-secondary">Reset Form</button>
+    </form>
+
+    <!-- Panel 2: Existing Requests List -->
+    <div id="request-list-panel" class="panel">
+        <h2>Existing Requests</h2>
+        <p>The following requests have been logged for this conversation.</p>
+        <div id="request-list-container">
+            <!-- Request items will be dynamically inserted here -->
+        </div>
+        <div class="panel-actions">
+            <button id="update-selected-btn" type="button">Update Selected</button>
+            <button id="create-new-btn" type="button" class="button-secondary">Create New Request</button>
+            <button id="refresh-list-btn" type="button" class="button-secondary">Refresh</button>
         </div>
     </div>
+
+    <!-- Panel 3: Update Request Form -->
+    <form id="update-form-panel" class="panel">
+        <h2>Update Request</h2>
+        <div class="request-type-display">
+            <strong>Request Type:</strong> <span id="update-request-type"></span>
+        </div>
+        <div class="form-group">
+            <label for="update-status">Request Status <span class="required">*</span></label>
+            <select id="update-status" required>
+                <!-- Options are now populated dynamically by taskpane.js -->
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="update-notes">Additional Notes</label>
+            <textarea id="update-notes" placeholder="Enter any additional notes..."></textarea>
+        </div>
+
+        <!-- Add this Priority field -->
+        <div class="form-group">
+            <label for="update-priority">Priority</label>
+            <select id="update-priority">
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+                <option value="Low">Low</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="report-url-group" style="display:none;">
+            <label for="report-url">Report Link (URL)</label>
+            <input type="url" id="report-url" placeholder="https://..."/>
+        </div>
+        <div class="panel-actions">
+            <button id="submit-update-btn" type="button">Submit Update</button>
+            <button id="back-to-list-btn" type="button" class="button-secondary">Back to List</button>
+        </div>
+    </form>
 
     <!-- Load the secret configuration file FIRST -->
     <script src="config.js" onerror="document.getElementById('error-message').style.display='block';document.getElementById('error-message').textContent='Critical error: config.js failed to load. Some features may not work.';console.error('config.js failed to load. Some features may not work.');"></script>

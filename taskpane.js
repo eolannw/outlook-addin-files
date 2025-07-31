@@ -18,6 +18,15 @@ const DOM = {
     requestType: 'requestType',
     reportsRequestedGroup: 'reports-requested-group',
     reportsRequested: 'reportsRequested',
+    // Contract Correction Tracking fields
+    contractCorrectionGroup: 'contract-correction-group',
+    contractNumber: 'contractNumber',
+    assignedFinancialAnalyst: 'assignedFinancialAnalyst',
+    contractCorrect: 'contractCorrect',
+    salesforceCorrect: 'salesforceCorrect',
+    oracleCorrect: 'oracleCorrect',
+    missingModifierList: 'missingModifierList',
+    missingFlexForm: 'missingFlexForm',
     status: 'status',
     notes: 'notes',
     priority: 'priority',
@@ -47,6 +56,8 @@ let currentItem;
 let currentUser;
 // Holds the list of request objects associated with the current email, used for duplicate checks and UI updates.
 let existingRequests = [];
+// Timers for refreshing request list
+let refreshTimers = [];
 // --- INITIALIZATION ---
 /**
  * Office.onReady initialization sequence:
@@ -85,9 +96,35 @@ Office.onReady(async (info) => {
 
 function setupGlobalEventHandlers() {
     // New Request Form
-    document.getElementById(DOM.submitBtn).onclick = submitNewRequest;
-    document.getElementById(DOM.resetBtn).onclick = resetForm;
+    document.getElementById(DOM.submitBtn).onclick = async () => {
+        try {
+            await submitNewRequest();
+        } catch (error) {
+            console.error("Error in submit handler:", error);
+            showError("An unexpected error occurred. Please try again.");
+        }
+    };
+    
+    document.getElementById(DOM.resetBtn).onclick = () => {
+        try {
+            resetForm();
+        } catch (error) {
+            console.error("Error in reset handler:", error);
+            showError("Error resetting form. Please refresh the page.");
+        }
+    };
+    
     document.getElementById(DOM.requestType).onchange = toggleReportsRequestedField;
+
+    // Contract Correction Tracking event handlers
+    const contractCorrectElem = document.getElementById(DOM.contractCorrect);
+    if (contractCorrectElem) contractCorrectElem.onchange = toggleMissingFields;
+    
+    const salesforceCorrectElem = document.getElementById(DOM.salesforceCorrect);
+    if (salesforceCorrectElem) salesforceCorrectElem.onchange = toggleMissingFields;
+    
+    const oracleCorrectElem = document.getElementById(DOM.oracleCorrect);
+    if (oracleCorrectElem) oracleCorrectElem.onchange = toggleMissingFields;
 
     // Request List Panel
     document.getElementById(DOM.updateSelectedBtn).onclick = () => showUpdateForm();
@@ -130,7 +167,8 @@ function toggleReportsRequestedField() {
     const requestType = document.getElementById(DOM.requestType).value;
     const reportsGroup = document.getElementById(DOM.reportsRequestedGroup);
     const reportsInput = document.getElementById(DOM.reportsRequested);
-
+    
+    // Show reports requested field for Compliance Request
     if (requestType === "Compliance Request") {
         reportsGroup.style.display = "block";
         reportsInput.value = 1;
@@ -140,6 +178,71 @@ function toggleReportsRequestedField() {
         reportsInput.value = ""; // Clear value when hidden
         reportsInput.disabled = true;
     }
+    
+    // Toggle Contract Correction Tracking fields
+    toggleContractCorrectionFields();
+}
+
+function toggleContractCorrectionFields() {
+    const requestType = document.getElementById(DOM.requestType).value;
+    const contractGroup = document.getElementById(DOM.contractCorrectionGroup);
+    
+    if (requestType === "Contract Correction Tracking") {
+        contractGroup.style.display = "block";
+        // Enable all fields
+        document.getElementById(DOM.contractNumber).disabled = false;
+        document.getElementById(DOM.assignedFinancialAnalyst).disabled = false;
+        document.getElementById(DOM.contractCorrect).disabled = false;
+        document.getElementById(DOM.salesforceCorrect).disabled = false;
+        document.getElementById(DOM.oracleCorrect).disabled = false;
+        
+        // Initially hide missing fields until "No" is selected
+        toggleMissingFields();
+    } else {
+        contractGroup.style.display = "none";
+        // Clear and disable all fields when hidden
+        document.getElementById(DOM.contractNumber).value = "";
+        document.getElementById(DOM.assignedFinancialAnalyst).value = "";
+        document.getElementById(DOM.contractCorrect).selectedIndex = 0;
+        document.getElementById(DOM.salesforceCorrect).selectedIndex = 0;
+        document.getElementById(DOM.oracleCorrect).selectedIndex = 0;
+        document.getElementById(DOM.missingModifierList).selectedIndex = 0;
+        document.getElementById(DOM.missingFlexForm).selectedIndex = 0;
+        
+        document.getElementById(DOM.contractNumber).disabled = true;
+        document.getElementById(DOM.assignedFinancialAnalyst).disabled = true;
+        document.getElementById(DOM.contractCorrect).disabled = true;
+        document.getElementById(DOM.salesforceCorrect).disabled = true;
+        document.getElementById(DOM.oracleCorrect).disabled = true;
+        document.getElementById(DOM.missingModifierList).disabled = true;
+        document.getElementById(DOM.missingFlexForm).disabled = true;
+    }
+}
+
+function toggleMissingFields() {
+    const contractCorrect = document.getElementById(DOM.contractCorrect).value;
+    const salesforceCorrect = document.getElementById(DOM.salesforceCorrect).value;
+    const oracleCorrect = document.getElementById(DOM.oracleCorrect).value;
+    
+    const missingModifierElement = document.getElementById(DOM.missingModifierList).parentElement;
+    const missingFlexElement = document.getElementById(DOM.missingFlexForm).parentElement;
+    
+    // Show missing fields if any of the correction fields is "NO"
+    const showMissingFields = contractCorrect === "NO" || salesforceCorrect === "NO" || oracleCorrect === "NO";
+    
+    if (showMissingFields) {
+        missingModifierElement.style.display = "block";
+        missingFlexElement.style.display = "block";
+        document.getElementById(DOM.missingModifierList).disabled = false;
+        document.getElementById(DOM.missingFlexForm).disabled = false;
+    } else {
+        missingModifierElement.style.display = "none";
+        missingFlexElement.style.display = "none";
+        document.getElementById(DOM.missingModifierList).selectedIndex = 0;
+        document.getElementById(DOM.missingFlexForm).selectedIndex = 0;
+        document.getElementById(DOM.missingModifierList).disabled = true;
+        document.getElementById(DOM.missingFlexForm).disabled = true;
+    }
 }
 
 // --- DATA LOADING AND CHECKING ---
@@ -147,6 +250,7 @@ function toggleReportsRequestedField() {
 function populateDropdowns() {
     const requestTypes = [
         "Compliance Request",
+        "Contract Correction Tracking",
         "Contract Extension",
         "Contract Termination",
         "Oracle Modification",
@@ -607,6 +711,20 @@ async function submitNewRequest() {
         return;
     }
     
+    // Additional validation for Contract Correction Tracking
+    if (requestType === "Contract Correction Tracking") {
+        const contractNumber = document.getElementById(DOM.contractNumber).value;
+        const assignedAnalyst = document.getElementById(DOM.assignedFinancialAnalyst).value;
+        const contractCorrect = document.getElementById(DOM.contractCorrect).value;
+        const salesforceCorrect = document.getElementById(DOM.salesforceCorrect).value;
+        const oracleCorrect = document.getElementById(DOM.oracleCorrect).value;
+        
+        if (!contractNumber || !assignedAnalyst || !contractCorrect || !salesforceCorrect || !oracleCorrect) {
+            showError("All Contract Correction Tracking fields are required.");
+            return;
+        }
+    }
+    
     // Check for duplicate (InternetMessageId, RequestType) combination
     const duplicateRequest = findDuplicateRequest(requestType);
     if (duplicateRequest) {
@@ -681,6 +799,14 @@ async function submitNewRequest() {
             sentDate: currentItem.dateTimeCreated ? new Date(currentItem.dateTimeCreated).toISOString() : null,
             requestType: requestType,
             reportsRequested: parseInt(document.getElementById(DOM.reportsRequested).value, 10) || null,
+            // Contract Correction Tracking fields
+            contractNumber: document.getElementById(DOM.contractNumber).value || null,
+            assignedFinancialAnalyst: document.getElementById(DOM.assignedFinancialAnalyst).value || null,
+            contractCorrect: document.getElementById(DOM.contractCorrect).value || null,
+            salesforceCorrect: document.getElementById(DOM.salesforceCorrect).value || null,
+            oracleCorrect: document.getElementById(DOM.oracleCorrect).value || null,
+            missingModifierList: document.getElementById(DOM.missingModifierList).value || null,
+            missingFlexForm: document.getElementById(DOM.missingFlexForm).value || null,
             requestStatus: status,
             notes: document.getElementById(DOM.notes).value || "",
             priority: priorityValue,
@@ -787,9 +913,12 @@ async function submitNewRequest() {
         // Pass true to keep the success message visible
         showRequestsPanel(existingRequests, true);
         
-        // Set up a timer to automatically refresh the list after a few seconds
-        // This helps get the real IDs without requiring user action
-        setTimeout(async () => {
+        // Clear any existing timers first
+        refreshTimers.forEach(timer => clearTimeout(timer));
+        refreshTimers = [];
+        
+        // Set up timers and track them
+        const timer1 = setTimeout(async () => {
             try {
                 // Get the updated requests without triggering UI changes
                 let lookupPayload = { InternetMessageId: String(currentItem.internetMessageId || "") };
@@ -814,9 +943,8 @@ async function submitNewRequest() {
                 // Don't show an error to the user, as the submission was successful
             }
         }, 5000); // Wait 5 seconds before auto-refreshing
-
-        // Also schedule another refresh for those slower systems
-        setTimeout(async () => {
+        
+        const timer2 = setTimeout(async () => {
             try {
                 // Check if we still have placeholder IDs
                 const stillHasPlaceholders = existingRequests.some(req => {
@@ -846,7 +974,9 @@ async function submitNewRequest() {
                 console.error("Error in second auto-refresh:", refreshError);
             }
         }, 10000); // Try again after 10 seconds
-
+        
+        refreshTimers.push(timer1, timer2);
+        
     } catch (error) {
         console.error("Submit error details:", error);
         // Display the specific error message to the user
@@ -1232,30 +1362,28 @@ function resetForm() {
         if (hasNewOption) statusElem.value = "New";
         else statusElem.value = ""; // fallback to blank if "New" is not present
     }
-    const statusDropdown = document.getElementById(DOM.status);
-    let foundNew = false;
-    if (statusDropdown && statusDropdown.options) {
-        for (let i = 0; i < statusDropdown.options.length; i++) {
-            if (statusDropdown.options[i].value === "New") {
-                statusDropdown.value = "New";
-                foundNew = true;
-                break;
-            }
-        }
-        if (!foundNew && statusDropdown.options.length > 0) {
-            statusDropdown.value = statusDropdown.options[0].value;
-        }
-        // No need to get the element again, we already have it in statusDropdown
-        statusDropdown.value = "New";
-    }
-    // No need to get the element again, we already have it in statusDropdown
-    if (statusDropdown) statusDropdown.value = "New";
     
     // Reload email metadata but not user inputs
     loadEmailData();
     
     // Ensure the Reports Requested field is properly set after reset
     toggleReportsRequestedField();
+    
+    // Reset contract correction fields specifically
+    const contractNumberElem = document.getElementById(DOM.contractNumber);
+    if (contractNumberElem) contractNumberElem.value = "";
+    const analystElem = document.getElementById(DOM.assignedFinancialAnalyst);
+    if (analystElem) analystElem.value = "";
+    const contractCorrectElem = document.getElementById(DOM.contractCorrect);
+    if (contractCorrectElem) contractCorrectElem.selectedIndex = 0;
+    const salesforceCorrectElem = document.getElementById(DOM.salesforceCorrect);
+    if (salesforceCorrectElem) salesforceCorrectElem.selectedIndex = 0;
+    const oracleCorrectElem = document.getElementById(DOM.oracleCorrect);
+    if (oracleCorrectElem) oracleCorrectElem.selectedIndex = 0;
+    const missingModifierElem = document.getElementById(DOM.missingModifierList);
+    if (missingModifierElem) missingModifierElem.selectedIndex = 0;
+    const missingFlexElem = document.getElementById(DOM.missingFlexForm);
+    if (missingFlexElem) missingFlexElem.selectedIndex = 0;
     
     // Clear any messages
     clearMessages();
@@ -1336,6 +1464,18 @@ function showError(message) {
     
     // Log the error to console for debugging
     console.error("ERROR SHOWN TO USER:", message);
+    
+    // SECURITY FIX: Always use textContent for user-facing messages to prevent XSS
+    if (message.includes('<p>') || message.includes('<div>')) {
+        // Only allow HTML for known safe internal messages
+        if (message.includes('Duplicate Request') || message.includes('view-duplicate-btn')) {
+            errorElement.innerHTML = message;
+        } else {
+            errorElement.textContent = message;
+        }
+    } else {
+        errorElement.textContent = message;
+    }
     
     // Auto-dismiss error after 8 seconds for errors that aren't critical or duplicates
     if (!isDuplicateError) {

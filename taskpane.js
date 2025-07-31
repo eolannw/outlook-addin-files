@@ -401,6 +401,14 @@ function showPanel(panelId, clear=true) {
         }
     }
     
+    // Hide main header for specific panels
+    const body = document.body;
+    if (panelId === DOM.requestListPanel || panelId === DOM.updateFormPanel) {
+        body.classList.add('hide-main-header');
+    } else {
+        body.classList.remove('hide-main-header');
+    }
+    
     // Only clear messages if the 'clear' flag is true.
     // This prevents messages from being hidden prematurely.
     if (clear) {

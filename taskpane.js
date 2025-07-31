@@ -25,8 +25,8 @@ const DOM = {
     contractCorrect: 'contractCorrect',
     salesforceCorrect: 'salesforceCorrect',
     oracleCorrect: 'oracleCorrect',
-    missingModifierList: 'missingModifierList',
-    missingFlexForm: 'missingFlexForm',
+    modifierList: 'modifierList', // Changed from missingModifierList
+    flexForm: 'flexForm', // Changed from missingFlexForm
     status: 'status',
     notes: 'notes',
     priority: 'priority',
@@ -206,16 +206,16 @@ function toggleContractCorrectionFields() {
         document.getElementById(DOM.contractCorrect).selectedIndex = 0;
         document.getElementById(DOM.salesforceCorrect).selectedIndex = 0;
         document.getElementById(DOM.oracleCorrect).selectedIndex = 0;
-        document.getElementById(DOM.missingModifierList).selectedIndex = 0;
-        document.getElementById(DOM.missingFlexForm).selectedIndex = 0;
+        document.getElementById(DOM.modifierList).selectedIndex = 0; // Changed from missingModifierList
+        document.getElementById(DOM.flexForm).selectedIndex = 0; // Changed from missingFlexForm
         
         document.getElementById(DOM.contractNumber).disabled = true;
         document.getElementById(DOM.assignedFinancialAnalyst).disabled = true;
         document.getElementById(DOM.contractCorrect).disabled = true;
         document.getElementById(DOM.salesforceCorrect).disabled = true;
         document.getElementById(DOM.oracleCorrect).disabled = true;
-        document.getElementById(DOM.missingModifierList).disabled = true;
-        document.getElementById(DOM.missingFlexForm).disabled = true;
+        document.getElementById(DOM.modifierList).disabled = true; // Changed from missingModifierList
+        document.getElementById(DOM.flexForm).disabled = true; // Changed from missingFlexForm
     }
 }
 
@@ -224,24 +224,24 @@ function toggleMissingFields() {
     const salesforceCorrect = document.getElementById(DOM.salesforceCorrect).value;
     const oracleCorrect = document.getElementById(DOM.oracleCorrect).value;
     
-    const missingModifierElement = document.getElementById(DOM.missingModifierList).parentElement;
-    const missingFlexElement = document.getElementById(DOM.missingFlexForm).parentElement;
+    const modifierElement = document.getElementById(DOM.modifierList).parentElement; // Changed from missingModifierList
+    const flexElement = document.getElementById(DOM.flexForm).parentElement; // Changed from missingFlexForm
     
     // Show missing fields if any of the correction fields is "NO"
     const showMissingFields = contractCorrect === "NO" || salesforceCorrect === "NO" || oracleCorrect === "NO";
     
     if (showMissingFields) {
-        missingModifierElement.style.display = "block";
-        missingFlexElement.style.display = "block";
-        document.getElementById(DOM.missingModifierList).disabled = false;
-        document.getElementById(DOM.missingFlexForm).disabled = false;
+        modifierElement.style.display = "block";
+        flexElement.style.display = "block";
+        document.getElementById(DOM.modifierList).disabled = false; // Changed from missingModifierList
+        document.getElementById(DOM.flexForm).disabled = false; // Changed from missingFlexForm
     } else {
-        missingModifierElement.style.display = "none";
-        missingFlexElement.style.display = "none";
-        document.getElementById(DOM.missingModifierList).selectedIndex = 0;
-        document.getElementById(DOM.missingFlexForm).selectedIndex = 0;
-        document.getElementById(DOM.missingModifierList).disabled = true;
-        document.getElementById(DOM.missingFlexForm).disabled = true;
+        modifierElement.style.display = "none";
+        flexElement.style.display = "none";
+        document.getElementById(DOM.modifierList).selectedIndex = 0; // Changed from missingModifierList
+        document.getElementById(DOM.flexForm).selectedIndex = 0; // Changed from missingFlexForm
+        document.getElementById(DOM.modifierList).disabled = true; // Changed from missingModifierList
+        document.getElementById(DOM.flexForm).disabled = true; // Changed from missingFlexForm
     }
 }
 
@@ -805,8 +805,8 @@ async function submitNewRequest() {
             contractCorrect: document.getElementById(DOM.contractCorrect).value || null,
             salesforceCorrect: document.getElementById(DOM.salesforceCorrect).value || null,
             oracleCorrect: document.getElementById(DOM.oracleCorrect).value || null,
-            missingModifierList: document.getElementById(DOM.missingModifierList).value || null,
-            missingFlexForm: document.getElementById(DOM.missingFlexForm).value || null,
+            modifierList: document.getElementById(DOM.modifierList).value || null, // Changed from missingModifierList
+            flexForm: document.getElementById(DOM.flexForm).value || null, // Changed from missingFlexForm
             requestStatus: status,
             notes: document.getElementById(DOM.notes).value || "",
             priority: priorityValue,
@@ -1380,10 +1380,10 @@ function resetForm() {
     if (salesforceCorrectElem) salesforceCorrectElem.selectedIndex = 0;
     const oracleCorrectElem = document.getElementById(DOM.oracleCorrect);
     if (oracleCorrectElem) oracleCorrectElem.selectedIndex = 0;
-    const missingModifierElem = document.getElementById(DOM.missingModifierList);
-    if (missingModifierElem) missingModifierElem.selectedIndex = 0;
-    const missingFlexElem = document.getElementById(DOM.missingFlexForm);
-    if (missingFlexElem) missingFlexElem.selectedIndex = 0;
+    const modifierElem = document.getElementById(DOM.modifierList); // Changed from missingModifierList
+    if (modifierElem) modifierElem.selectedIndex = 0;
+    const flexElem = document.getElementById(DOM.flexForm); // Changed from missingFlexForm
+    if (flexElem) flexElem.selectedIndex = 0;
     
     // Clear any messages
     clearMessages();

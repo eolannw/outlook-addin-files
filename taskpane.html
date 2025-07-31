@@ -180,6 +180,20 @@
             display: block;
         }
         
+        /* Hide main header when showing specific panels */
+        body:has(#request-list-panel[style*="display: block"]) > h1,
+        body:has(#request-list-panel[style*="display: block"]) > p.subtitle,
+        body:has(#update-form-panel[style*="display: block"]) > h1,
+        body:has(#update-form-panel[style*="display: block"]) > p.subtitle {
+            display: none;
+        }
+        
+        /* Fallback for browsers that don't support :has() */
+        .hide-main-header > h1:first-of-type,
+        .hide-main-header > p.subtitle {
+            display: none;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -425,8 +439,8 @@
 
     <!-- Panel 2: Existing Requests List -->
     <div id="request-list-panel" class="panel">
-        <h2>Existing Requests</h2>
-        <p>The following requests have been logged for this conversation.</p>
+        <h1>Existing Requests</h1>
+        <p class="subtitle">The following requests have been logged for this conversation.</p>
         <div id="request-list-container">
             <!-- Request items will be dynamically inserted here -->
         </div>
@@ -439,7 +453,7 @@
 
     <!-- Panel 3: Update Request Form -->
     <form id="update-form-panel" class="panel">
-        <h2>Update Request</h2>
+        <h1>Update Request</h1>
         <div class="request-type-display">
             <strong>Request Type:</strong> <span id="update-request-type"></span>
         </div>

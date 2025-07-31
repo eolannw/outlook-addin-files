@@ -192,8 +192,6 @@
             border: 1px solid transparent;
             padding: var(--space-2) var(--space-4);
             height: 2.25rem;
-            margin-right: var(--space-2);
-            margin-top: var(--space-4);
         }
 
         /* Primary Button */
@@ -277,6 +275,13 @@
             font-weight: 600;
             line-height: 1;
             letter-spacing: -0.025em;
+        }
+
+        .card-title.main-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--stryker-orange);
+            letter-spacing: -0.05em;
         }
 
         .card-description {
@@ -676,6 +681,17 @@
         }
 
         /* Button group spacing */
+        .card-footer {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .card-footer button {
+            margin: 0;
+        }
+
         .card-footer button:last-child {
             margin-right: 0;
         }
@@ -693,6 +709,8 @@
             background-size: 1rem;
             padding-right: var(--space-8);
             appearance: none;
+            position: relative;
+            z-index: 10;
         }
 
         /* Better readonly styling */
@@ -719,11 +737,6 @@
 
 <body>
     <div class="container">
-        <header class="mb-8">
-            <h1>Track Request</h1>
-            <p class="subtitle">Log this email request to SharePoint</p>
-        </header>
-        
         <div id="loading">
             <div class="loading-spinner"></div>
             Loading email data...
@@ -736,8 +749,8 @@
         <div id="request-form" class="panel">
             <div class="card">
                 <div class="card-header">
-                    <h2 class="card-title">New Request</h2>
-                    <p class="card-description">Create a new compliance request from this email</p>
+                    <h1 class="card-title main-title">Track Request</h1>
+                    <p class="card-description">Log this email request to SharePoint</p>
                 </div>
                 <div class="card-content">
                     <form>
